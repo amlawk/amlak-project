@@ -4,7 +4,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot } from 'firebase/firestore';
 
 // --- آیکون‌ها ---
-import { Home, Users, Search, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X, PlusCircle, Building, Map, Square, FileSignature } from 'lucide-react';
+import { Home, Users, Search, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X, PlusCircle, Building, Map, Square, FileSignature, Star, Zap, Target } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -51,8 +51,7 @@ function AuthProvider({ children }) {
           const docSnap = await getDoc(userDocRef);
           
           if (docSnap.exists()) {
-            const role = docSnap.data().role;
-            setUserRole(role);
+            setUserRole(docSnap.data().role);
           } else {
             setUserRole(null);
           }
@@ -154,16 +153,28 @@ function RoleSelector({ selectedRole, setSelectedRole, disabled }) {
     { value: 'seller', label: 'فروشنده', icon: Store, color: 'purple' },
     { value: 'buyer', label: 'خریدار', icon: ShoppingCart, color: 'yellow' },
   ];
+
+  const colorClasses = {
+    indigo: { border: 'border-indigo-600', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+    green: { border: 'border-green-600', bg: 'bg-green-50', text: 'text-green-600' },
+    purple: { border: 'border-purple-600', bg: 'bg-purple-50', text: 'text-purple-600' },
+    yellow: { border: 'border-yellow-600', bg: 'bg-yellow-50', text: 'text-yellow-600' },
+  };
+
   return (
     <div className="flex flex-wrap justify-center gap-3">
-      {roles.map((role) => (
-        <label key={role.value} className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all w-[calc(50%-0.375rem)] sm:w-[calc(25%-0.5625rem)] ${selectedRole === role.value ? `border-${role.color}-600 bg-${role.color}-50 shadow-md` : 'border-gray-300 hover:border-gray-400 bg-gray-50'} ${disabled ? 'opacity-60 ' : 'cursor-pointer'}`}>
-          <input type="radio" className="hidden" name="role" value={role.value} checked={selectedRole === role.value} onChange={(e) => setSelectedRole(e.target.value)} disabled={disabled}/>
-          {React.createElement(role.icon, { className: `w-6 h-6 text-${role.color}-600 mb-1` })}
-          <span className="text-sm font-medium text-gray-800">{role.label}</span>
-          {selectedRole === role.value && <CheckCircle className={`w-4 h-4 text-${role.color}-600 mt-1`} />}
-        </label>
-      ))}
+      {roles.map((role) => {
+        const currentColors = colorClasses[role.color];
+        const isSelected = selectedRole === role.value;
+        return (
+            <label key={role.value} className={`flex flex-col items-center p-2 rounded-xl border-2 transition-all w-[calc(50%-0.375rem)] sm:w-[calc(25%-0.5625rem)] ${isSelected ? `${currentColors.border} ${currentColors.bg} shadow-md` : 'border-gray-300 hover:border-gray-400 bg-gray-50'} ${disabled ? 'opacity-60 ' : 'cursor-pointer'}`}>
+              <input type="radio" className="hidden" name="role" value={role.value} checked={isSelected} onChange={(e) => setSelectedRole(e.target.value)} disabled={disabled}/>
+              {React.createElement(role.icon, { className: `w-6 h-6 ${currentColors.text} mb-1` })}
+              <span className="text-sm font-medium text-gray-800">{role.label}</span>
+              {isSelected && <CheckCircle className={`w-4 h-4 ${currentColors.text} mt-1`} />}
+            </label>
+        );
+      })}
     </div>
   );
 }
@@ -181,8 +192,8 @@ function AuthForm() {
     e.preventDefault();
     setMessage('');
     if (authFlowState === 'register') await register(email, password, selectedRole);
-    else if (authFlowState === 'login') await login(email, password);
-    else if (authFlowState === 'demo') await startDemo(phoneNumber, selectedRole);
+    else if (authFlowState === 'login') await login(email, password, selectedRole);
+    else if (authFlowState === 'quick-login') await startDemo(phoneNumber, selectedRole);
   };
 
   const handlePasswordResetSubmit = async (e) => {
@@ -196,7 +207,7 @@ function AuthForm() {
       <div className="flex border-b mb-6">
           <button onClick={() => setAuthFlowState('login')} className={`flex-1 py-2 font-semibold ${authFlowState === 'login' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}>ورود</button>
           <button onClick={() => setAuthFlowState('register')} className={`flex-1 py-2 font-semibold ${authFlowState === 'register' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}>ثبت نام</button>
-          <button onClick={() => setAuthFlowState('demo')} className={`flex-1 py-2 font-semibold ${authFlowState === 'demo' ? 'border-b-2 border-green-600 text-green-600' : 'text-gray-500'}`}>ورود دمو</button>
+          <button onClick={() => setAuthFlowState('quick-login')} className={`flex-1 py-2 font-semibold ${authFlowState === 'quick-login' ? 'border-b-2 border-green-600 text-green-600' : 'text-gray-500'}`}>ورود سریع</button>
       </div>
   );
 
@@ -220,20 +231,20 @@ function AuthForm() {
           );
     }
     
-    const isDemoFlow = authFlowState === 'demo';
+    const isQuickLoginFlow = authFlowState === 'quick-login';
     return (
       <>
         {renderTabs()}
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">
-            {isDemoFlow ? 'ورود به نسخه نمایشی' : (authFlowState === 'register' ? 'ایجاد حساب کاربری' : 'ورود به حساب')}
+            {isQuickLoginFlow ? 'ورود سریع' : (authFlowState === 'register' ? 'ایجاد حساب کاربری' : 'ورود به حساب')}
         </h2>
         {authError && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4 text-sm" role="alert">{authError}</div>}
         <form onSubmit={handleMainSubmit} className="space-y-5">
-          <div className={`${authFlowState === 'login' ? 'hidden' : 'block'}`}>
+          <div>
             <label className="block text-gray-700 text-sm font-semibold mb-2">نقش خود را انتخاب کنید:</label>
             <RoleSelector selectedRole={selectedRole} setSelectedRole={setSelectedRole} disabled={loading}/>
           </div>
-          {isDemoFlow ? (
+          {isQuickLoginFlow ? (
               <div>
                 <label className="block text-gray-700 text-sm font-semibold mb-2">شماره موبایل:</label>
                 <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full px-4 py-2 border rounded-lg" required placeholder="مثال: 09123456789" />
@@ -255,8 +266,8 @@ function AuthForm() {
                   <button type="button" onClick={() => { setAuthFlowState('forgotPassword'); setMessage(''); }} className="text-sm text-indigo-600 hover:underline">فراموشی رمز عبور</button>
               </div>
           )}
-          <button type="submit" className={`w-full text-white font-bold py-3 rounded-lg transition ${isDemoFlow ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'}`} disabled={loading}>
-            {loading ? 'در حال پردازش...' : (isDemoFlow ? 'ورود به دمو' : (authFlowState === 'register' ? 'ثبت نام' : 'ورود'))}
+          <button type="submit" className={`w-full text-white font-bold py-3 rounded-lg transition ${isQuickLoginFlow ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'}`} disabled={loading}>
+            {loading ? 'در حال پردازش...' : (isQuickLoginFlow ? 'ورود سریع' : (authFlowState === 'register' ? 'ثبت نام' : 'ورود'))}
           </button>
         </form>
       </>
@@ -273,6 +284,75 @@ function AuthForm() {
 }
 
 // --- کامپوننت‌های جدید و بازطراحی شده ---
+
+function DemoDashboard({ onRegisterClick, onExitDemo }) {
+    const sampleProperties = [
+        { id: 1, address: 'تهران، خیابان سعادت آباد، برج کاج', propertyType: 'آپارتمان', area: 150 },
+        { id: 2, address: 'اصفهان، خیابان چهارباغ، مجتمع پارسیان', propertyType: 'مغازه', area: 50 },
+        { id: 3, address: 'لواسان، شهرک باستی، ویلای شماره ۱۲', propertyType: 'ویلا', area: 800 },
+    ];
+
+    return (
+        <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
+            <div className="max-w-5xl mx-auto">
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mb-6 text-center">
+                    <h2 className="text-2xl font-bold flex items-center justify-center"><Zap className="w-7 h-7 ml-2"/>تمام امکانات را آزاد کنید!</h2>
+                    <p className="mt-2">با ثبت‌نام کامل، می‌توانید املاک خود را ثبت و مدیریت کنید، قراردادهای رسمی ایجاد نمایید و به تمام ابزارهای پیشرفته دسترسی داشته باشید.</p>
+                    <button onClick={onRegisterClick} className="mt-4 bg-white text-indigo-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-200 transition-transform transform hover:scale-105">
+                        ثبت‌نام و فعال‌سازی امکانات
+                    </button>
+                </div>
+
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+                        <User className="mr-3 w-7 h-7 text-indigo-600"/>
+                        کارتابل نمایشی
+                    </h1>
+                    <button onClick={onExitDemo} className="bg-white text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-200 transition shadow-sm border">
+                        <ArrowLeft className="w-5 h-5 ml-2"/>خروج از حالت نمایش
+                    </button>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
+                    <div className="absolute inset-0 bg-white/30 backdrop-blur-sm z-10"></div>
+                    <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">نام کامل</label>
+                                <input type="text" value="کاربر نمونه" disabled className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">شماره تلفن</label>
+                                <input type="text" value="۰۹۱۲۱۲۳۴۵۶۷" disabled className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2">
+                           <h2 className="text-lg font-bold text-gray-800">املاک من (نمونه)</h2>
+                           <button disabled className="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg flex items-center text-sm font-semibold opacity-50 cursor-not-allowed">
+                               <PlusCircle className="w-5 h-5 ml-2"/> ثبت ملک جدید
+                           </button>
+                        </div>
+                        <div className="space-y-4">
+                            {sampleProperties.map(prop => (
+                                <div key={prop.id} className="border rounded-lg p-4 bg-gray-50">
+                                    <h3 className="font-bold text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{prop.address}</h3>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
+                                        <span className="flex items-center"><FileSignature className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
+                                        <span className="flex items-center"><Square className="w-4 h-4 ml-1"/>متراژ: {prop.area} متر</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function AddPropertyModal({ isOpen, onClose, userId, db }) {
     const [propertyType, setPropertyType] = useState('apartment');
@@ -295,10 +375,9 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
                 description,
                 createdAt: new Date(),
             });
-            onClose(); // Close modal on success
+            onClose();
         } catch (error) {
             console.error("Error adding property: ", error);
-            // Optionally, show an error message to the user
         } finally {
             setIsSaving(false);
         }
@@ -360,18 +439,15 @@ function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
     useEffect(() => {
         if (!targetUserId || !db) return;
 
-        // Fetch user profile
-        const fetchProfile = async () => {
-            const docRef = doc(db, 'users', targetUserId);
-            const docSnap = await getDoc(docRef);
+        const docRef = doc(db, 'users', targetUserId);
+        const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 setProfile({ id: docSnap.id, ...docSnap.data() });
             } else {
                 setError('پروفایل یافت نشد.');
             }
-        };
-
-        // Fetch user properties with real-time updates
+        });
+        
         const q = query(collection(db, "properties"), where("userId", "==", targetUserId));
         const unsubscribeProperties = onSnapshot(q, (querySnapshot) => {
             const props = [];
@@ -379,14 +455,15 @@ function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
                 props.push({ id: doc.id, ...doc.data() });
             });
             setProperties(props);
+            setIsLoading(false);
         }, (err) => {
             console.error("Error fetching properties:", err);
             setError("خطا در دریافت لیست املاک.");
+            setIsLoading(false);
         });
         
-        Promise.all([fetchProfile()]).finally(() => setIsLoading(false));
-
-        return () => { // Cleanup subscription on unmount
+        return () => {
+            unsubscribeProfile();
             unsubscribeProperties();
         };
 
@@ -435,7 +512,6 @@ function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
                 {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 text-sm">{success}</div>}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Profile Card */}
                     <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
                         <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
                         {profile && (
@@ -470,7 +546,6 @@ function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
                         </div>
                     </div>
 
-                    {/* Properties Card */}
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                            <h2 className="text-lg font-bold text-gray-800">املاک من</h2>
@@ -501,22 +576,74 @@ function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
     );
 }
 
+function LeadsTable({ db }) {
+    const [leads, setLeads] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!db) return;
+        const q = query(collection(db, "demo_leads"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const leadsData = [];
+            querySnapshot.forEach((doc) => {
+                leadsData.push({ id: doc.id, ...doc.data() });
+            });
+            setLeads(leadsData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [db]);
+
+    if (isLoading) return <p className="text-center py-8 text-gray-500">در حال بارگذاری سرنخ‌ها...</p>;
+
+    return (
+        <div className="overflow-x-auto mt-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><Target className="w-6 h-6 ml-2 text-green-600"/>سرنخ‌های ورود سریع</h3>
+            {leads.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">شماره موبایل</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نقش انتخابی</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاریخ</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {leads.map(lead => (
+                            <tr key={lead.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{lead.phoneNumber}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{lead.role}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {lead.timestamp?.toDate().toLocaleDateString('fa-IR')}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : (
+                <p className="text-center text-gray-500 py-8">هنوز هیچ سرنخی ثبت نشده است.</p>
+            )}
+        </div>
+    );
+}
+
 
 function AdminDashboard({ onManageUser, onBack }) {
   const { db } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [adminView, setAdminView] = useState('users'); // 'users' or 'leads'
 
   useEffect(() => {
+    if (adminView !== 'users' || !db) return;
+    setIsLoading(true);
     const fetchUsers = async () => {
-        if (!db) return;
-        setIsLoading(true);
         const usersSnapshot = await getDocs(collection(db, "users"));
         setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         setIsLoading(false);
     };
     fetchUsers();
-  }, [db]);
+  }, [db, adminView]);
 
   return (
     <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
@@ -528,29 +655,49 @@ function AdminDashboard({ onManageUser, onBack }) {
             </button>
         </div>
         
-        {isLoading ? <p>در حال بارگذاری لیست کاربران...</p> : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ایمیل</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نقش</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{u.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{u.role || 'کاربر'}</span></td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onClick={() => onManageUser(u)} className="text-indigo-600 hover:text-indigo-900">مدیریت کاربر</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+                <button onClick={() => setAdminView('users')} className={`${adminView === 'users' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                    مدیریت کاربران
+                </button>
+                <button onClick={() => setAdminView('leads')} className={`${adminView === 'leads' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                    سرنخ‌های فروش
+                </button>
+            </nav>
+        </div>
+
+        {adminView === 'users' ? (
+            isLoading ? <p className="text-center py-8 text-gray-500">در حال بارگذاری کاربران...</p> : (
+              <div className="overflow-x-auto mt-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><Users className="w-6 h-6 ml-2 text-indigo-600"/>لیست کاربران ثبت شده</h3>
+                {users.length > 0 ? (
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ایمیل</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نقش</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {users.map(u => (
+                          <tr key={u.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{u.email}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{u.role || 'کاربر'}</span></td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onClick={() => onManageUser(u)} className="text-indigo-600 hover:text-indigo-900">مدیریت کاربر</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                ) : (
+                    <p className="text-center text-gray-500 py-8">هیچ کاربری ثبت نام نکرده است.</p>
+                )}
+              </div>
+            )
+        ) : (
+            <LeadsTable db={db} />
         )}
       </div>
     </div>
@@ -590,7 +737,7 @@ function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout
                                 <Shield className="w-10 h-10 text-red-500"/>
                                 <div>
                                     <h3 className="text-lg font-bold text-gray-800">پنل مدیریت</h3>
-                                    <p className="text-sm text-gray-500">کاربران سیستم را مدیریت کنید</p>
+                                    <p className="text-sm text-gray-500">کاربران و سرنخ‌ها را مدیریت کنید</p>
                                 </div>
                             </button>
                         )}
@@ -612,16 +759,16 @@ function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout
 
 // --- کامپوننت اصلی مدیریت نمایش صفحات ---
 function MainAppContent() {
-  const { user, loading, userRole, logout, isDemo, demoInfo, endDemo } = useAuth();
+  const { user, loading, userRole, logout, isDemo, endDemo } = useAuth();
   const [view, setView] = useState('dashboard');
   const [managedUser, setManagedUser] = useState(null);
 
   const handleNavigation = (targetView, data = null) => {
       if (targetView === 'manageUser') {
           setManagedUser(data);
-          setView('profile'); // Navigate to profile page to manage the user
+          setView('profile');
       } else {
-          setManagedUser(null); // Clear managed user when going to other views
+          setManagedUser(null);
           setView(targetView);
       }
   };
@@ -631,14 +778,13 @@ function MainAppContent() {
   }
 
   if (isDemo) {
-    // Demo view can be simplified or removed if not needed
-    return <AuthForm />;
+    return <DemoDashboard onExitDemo={endDemo} onRegisterClick={endDemo} />;
   }
 
   if (user) {
     switch (view) {
       case 'profile': 
-        return <ProfileAndPropertiesPage onBack={() => handleNavigation('dashboard')} managedUser={managedUser} />;
+        return <ProfileAndPropertiesPage onBack={() => handleNavigation(userRole === 'admin' && managedUser ? 'admin' : 'dashboard')} managedUser={managedUser} />;
       case 'admin': 
         return <AdminDashboard onBack={() => handleNavigation('dashboard')} onManageUser={(userToManage) => handleNavigation('manageUser', userToManage)} />;
       case 'dashboard':
