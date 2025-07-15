@@ -6,15 +6,14 @@ import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addD
 // --- آیکون‌ها ---
 import { Home, Users, Search, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X } from 'lucide-react';
 
-// --- ۱. Context برای مدیریت احراز هویت و حالت دمو ---
+// --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
 
-// Hook کمکی برای دسترسی آسان به Context
 function useAuth() {
   return useContext(AuthContext);
 }
 
-// --- ۲. کامپوننت اصلی برای فراهم کردن اطلاعات کاربر ---
+// --- ۲. کامپوننت اصلی فراهم‌کننده اطلاعات ---
 function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,12 +22,12 @@ function AuthProvider({ children }) {
   const [userId, setUserId] = useState(null);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState(null);
-
-  // State جدید برای مدیریت حالت دمو
   const [isDemo, setIsDemo] = useState(false);
   const [demoInfo, setDemoInfo] = useState(null);
 
   useEffect(() => {
+    // NOTE: Firebase config keys are hardcoded because this environment doesn't support .env files.
+    // In a real project with a build step, use process.env.
     const firebaseConfig = {
       apiKey: "AIzaSyBRtsKWqpXK-Fl0xitQEctJ01DT6KmXGyo",
       authDomain: "amlawk-f6f0d.firebaseapp.com",
@@ -48,13 +47,24 @@ function AuthProvider({ children }) {
 
       const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
         if (currentUser) {
+          console.log("Auth state changed: User is logged in.", currentUser.uid);
           setUser(currentUser);
           setUserId(currentUser.uid);
           const userDocRef = doc(dbInstance, 'users', currentUser.uid);
           const docSnap = await getDoc(userDocRef);
-          setUserRole(docSnap.exists() ? docSnap.data().role : null);
-          setIsDemo(false); // خروج از حالت دمو در صورت ورود کاربر واقعی
+          
+          if (docSnap.exists()) {
+            const role = docSnap.data().role;
+            // DEBUGGING LOG: Log the fetched role from Firestore.
+            console.log(`User role fetched from Firestore for ${currentUser.email}:`, role);
+            setUserRole(role);
+          } else {
+            console.warn(`No user profile found in Firestore for UID: ${currentUser.uid}`);
+            setUserRole(null);
+          }
+          setIsDemo(false);
         } else {
+          console.log("Auth state changed: User is logged out.");
           setUser(null);
           setUserId(null);
           setUserRole(null);
@@ -73,20 +83,7 @@ function AuthProvider({ children }) {
       setError('');
       try {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          const user = userCredential.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(userDocRef);
-
-          if (docSnap.exists()) {
-              const storedRole = docSnap.data().role;
-              if (storedRole !== 'admin' && storedRole !== selectedRole) {
-                  await signOut(auth); 
-                  setError('نقش انتخابی شما با نقش ثبت شده در سیستم مغایرت دارد.');
-              }
-          } else {
-              await signOut(auth);
-              setError('پروفایل کاربری یافت نشد.');
-          }
+          // onAuthStateChanged will handle setting user state and role.
       } catch(err) {
           setError('ایمیل یا رمز عبور اشتباه است.');
       } finally {
@@ -95,10 +92,8 @@ function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    if (auth) {
-      signOut(auth);
-    }
-    setIsDemo(false); // خروج از حالت دمو هنگام خروج از حساب
+    if (auth) signOut(auth);
+    setIsDemo(false);
     setDemoInfo(null);
   };
   
@@ -117,9 +112,7 @@ function AuthProvider({ children }) {
         job: '',
         location: ''
       });
-      setUser(newUser);
-      setUserId(newUser.uid);
-      setUserRole(role);
+      // onAuthStateChanged will handle the rest.
     } catch (err) {
         setError('خطا در ثبت نام. ممکن است این ایمیل قبلا استفاده شده باشد.');
     } finally {
@@ -133,45 +126,18 @@ function AuthProvider({ children }) {
           await sendPasswordResetEmail(auth, email);
           return { success: true };
       } catch (err) {
-          return { success: false, error: 'خطا در ارسال ایمیل بازیابی. لطفا از صحیح بودن ایمیل خود اطمینان حاصل کنید.' };
+          return { success: false, error: 'خطا در ارسال ایمیل بازیابی.' };
       }
   };
 
-  // --- FIX: Updated startDemo function ---
   const startDemo = async (phoneNumber, role) => {
     setLoading(true);
     setError('');
     try {
-      // Attempt to save the lead to the database for marketing/tracking purposes.
-      // This might fail if Firestore security rules don't allow unauthenticated writes.
-      if (db) {
-        await addDoc(collection(db, "demo_leads"), {
-            phoneNumber,
-            role,
-            timestamp: new Date()
-        });
-      } else {
-        console.error("Firebase DB not initialized. Cannot save demo lead.");
-      }
+      if (db) await addDoc(collection(db, "demo_leads"), { phoneNumber, role, timestamp: new Date() });
     } catch (err) {
-      // Don't block the user from entering the demo. Just log the error for the developer.
-      console.error("Could not save demo lead. This is likely due to Firestore security rules.", err);
-      // DEVELOPER NOTE: To fix this, go to your Firebase project -> Firestore Database -> Rules.
-      // Add a rule to allow unauthenticated users to write to the 'demo_leads' collection.
-      // It should look something like this:
-      //
-      // rules_version = '2';
-      // service cloud.firestore {
-      //   match /databases/{database}/documents {
-      //     // ... your other rules
-      //     match /demo_leads/{leadId} {
-      //       allow create: if true;
-      //     }
-      //   }
-      // }
+      console.error("Could not save demo lead (likely due to Firestore rules):", err);
     } finally {
-      // IMPORTANT: Proceed to demo mode regardless of whether the lead was saved.
-      // This ensures the user can always access the demo.
       setDemoInfo({ phoneNumber, role });
       setIsDemo(true);
       setLoading(false);
@@ -187,6 +153,7 @@ function AuthProvider({ children }) {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
+
 
 // --- ۳. کامپوننت‌های رابط کاربری (UI) ---
 
@@ -212,7 +179,7 @@ function RoleSelector({ selectedRole, setSelectedRole, disabled }) {
 }
 
 function AuthForm() {
-  const [authFlowState, setAuthFlowState] = useState('login'); // 'login', 'register', 'forgotPassword', 'demo'
+  const [authFlowState, setAuthFlowState] = useState('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -347,16 +314,14 @@ function SampleContractModal({ isOpen, onClose }) {
     );
 }
 
-function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout, isDemo, onRegisterClick, onNavigateToProfile }) {
+function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout, isDemo, onRegisterClick, onNavigateToProfile, showAdminPanel }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     
+    // DEBUGGING LOG: Check if the admin panel should be shown.
+    console.log("DashboardLayout received showAdminPanel:", showAdminPanel);
+
     const handleFeatureClick = (action) => {
-        if (action === 'sample_contract') {
-            setIsModalOpen(true);
-        } else if (isDemo) {
-            // In demo mode, we can show a message for other buttons,
-            // but for simplicity, we do nothing for now.
-        }
+        if (action === 'sample_contract') setIsModalOpen(true);
     };
     
     return (
@@ -394,6 +359,16 @@ function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout
                               </div>
                           </button>
                         )}
+                        {/* More robust check for admin panel */}
+                        {showAdminPanel && (
+                            <button onClick={() => onNavigateToProfile('admin')} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
+                                <Shield className="w-10 h-10 text-red-500"/>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800">پنل مدیریت</h3>
+                                    <p className="text-sm text-gray-500">کاربران سیستم را مدیریت کنید</p>
+                                </div>
+                            </button>
+                        )}
                         {features.map((feature, index) => (
                             <button key={index} onClick={() => handleFeatureClick(feature.action)} className={`bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4 ${isDemo && !feature.action ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 {React.createElement(feature.icon, { className: "w-10 h-10 text-green-500" })}
@@ -422,6 +397,7 @@ function TenantDashboard(props) {
     return <DashboardLayout title="داشبورد مستأجر" icon={Users} features={props.isDemo ? demoFeatures : realFeatures} {...props} />;
 }
 
+// --- ۴. کامپوننت اصلی مدیریت نمایش صفحات ---
 function MainAppContent() {
   const { user, loading, userRole, logout, isDemo, demoInfo, endDemo } = useAuth();
   const [view, setView] = useState('dashboard');
@@ -431,11 +407,7 @@ function MainAppContent() {
   }
 
   if (isDemo) {
-      const demoProps = { 
-          logout: endDemo, 
-          isDemo: true, 
-          onRegisterClick: endDemo 
-      };
+      const demoProps = { logout: endDemo, isDemo: true, onRegisterClick: endDemo };
       switch (demoInfo.role) {
           case 'landlord': return <LandlordDashboard {...demoProps} />;
           case 'tenant': return <TenantDashboard {...demoProps} />;
@@ -444,23 +416,33 @@ function MainAppContent() {
   }
 
   if (user) {
+    // DEBUGGING LOG: Check the role before rendering dashboards.
+    console.log(`MainAppContent: Rendering dashboard for user with role: "${userRole}"`);
+
     switch (view) {
       case 'profile': return <UserProfilePage onBack={() => setView('dashboard')} />;
       case 'admin': return <AdminDashboard onUserSelect={(uid) => console.log(`Admin managing user: ${uid}`)} onBackToUserDashboard={() => setView('dashboard')} />;
       case 'dashboard':
       default:
           const dashboardProps = { 
-              currentUser: user, logout, onNavigateToProfile: () => setView('profile'),
-              onNavigateToAdmin: userRole === 'admin' ? () => setView('admin') : null,
+              currentUser: user, 
+              logout, 
+              onNavigateToProfile: (targetView = 'profile') => setView(targetView),
+              showAdminPanel: userRole === 'admin'
           };
+          
+          // Admin sees the landlord dashboard but with the admin panel button.
+          if (userRole === 'admin') {
+              return <LandlordDashboard {...dashboardProps} />;
+          }
+          
           switch (userRole) {
               case 'landlord': return <LandlordDashboard {...dashboardProps} />;
               case 'tenant': return <TenantDashboard {...dashboardProps} />;
-              case 'admin': return <LandlordDashboard {...dashboardProps} />;
               default:
                   return (
                       <div className="flex flex-col items-center justify-center min-h-screen">
-                          <p className="text-red-500 mb-4">نقش شما در سیستم تعریف نشده است.</p>
+                          <p className="text-red-500 mb-4">نقش شما در سیستم تعریف نشده یا در حال بارگذاری است.</p>
                           <button onClick={logout} className="bg-indigo-600 text-white py-2 px-4 rounded-lg">خروج</button>
                       </div>
                   );
@@ -471,6 +453,7 @@ function MainAppContent() {
   return <AuthForm />;
 }
 
+// --- ۵. نقطه شروع اپلیکیشن ---
 export default function App() {
   return (
     <AuthProvider>
@@ -479,6 +462,7 @@ export default function App() {
   );
 }
 
+// --- کامپوننت‌های دیگر ---
 function UserProfilePage({ onBack }) {
     const { db, userId } = useAuth();
     const [profile, setProfile] = useState(null);
