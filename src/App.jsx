@@ -2,9 +2,10 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // --- آیکون‌ها ---
-import { Home, Users, Search, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X, PlusCircle, Building, Map, Square, FileSignature, Star, Zap, Target } from 'lucide-react';
+import { Home, Users, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Menu, Settings, FilePlus, LayoutDashboard, TrendingUp } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -285,75 +286,6 @@ function AuthForm() {
 
 // --- کامپوننت‌های جدید و بازطراحی شده ---
 
-function DemoDashboard({ onRegisterClick, onExitDemo }) {
-    const sampleProperties = [
-        { id: 1, address: 'تهران، خیابان سعادت آباد، برج کاج', propertyType: 'آپارتمان', area: 150 },
-        { id: 2, address: 'اصفهان، خیابان چهارباغ، مجتمع پارسیان', propertyType: 'مغازه', area: 50 },
-        { id: 3, address: 'لواسان، شهرک باستی، ویلای شماره ۱۲', propertyType: 'ویلا', area: 800 },
-    ];
-
-    return (
-        <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
-            <div className="max-w-5xl mx-auto">
-                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mb-6 text-center">
-                    <h2 className="text-2xl font-bold flex items-center justify-center"><Zap className="w-7 h-7 ml-2"/>تمام امکانات را آزاد کنید!</h2>
-                    <p className="mt-2">با ثبت‌نام کامل، می‌توانید املاک خود را ثبت و مدیریت کنید، قراردادهای رسمی ایجاد نمایید و به تمام ابزارهای پیشرفته دسترسی داشته باشید.</p>
-                    <button onClick={onRegisterClick} className="mt-4 bg-white text-indigo-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-200 transition-transform transform hover:scale-105">
-                        ثبت‌نام و فعال‌سازی امکانات
-                    </button>
-                </div>
-
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-                        <User className="mr-3 w-7 h-7 text-indigo-600"/>
-                        کارتابل نمایشی
-                    </h1>
-                    <button onClick={onExitDemo} className="bg-white text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-200 transition shadow-sm border">
-                        <ArrowLeft className="w-5 h-5 ml-2"/>خروج از حالت نمایش
-                    </button>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
-                    <div className="absolute inset-0 bg-white/30 backdrop-blur-sm z-10"></div>
-                    <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-600">نام کامل</label>
-                                <input type="text" value="کاربر نمونه" disabled className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm"/>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-600">شماره تلفن</label>
-                                <input type="text" value="۰۹۱۲۱۲۳۴۵۶۷" disabled className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm"/>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                           <h2 className="text-lg font-bold text-gray-800">املاک من (نمونه)</h2>
-                           <button disabled className="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg flex items-center text-sm font-semibold opacity-50 cursor-not-allowed">
-                               <PlusCircle className="w-5 h-5 ml-2"/> ثبت ملک جدید
-                           </button>
-                        </div>
-                        <div className="space-y-4">
-                            {sampleProperties.map(prop => (
-                                <div key={prop.id} className="border rounded-lg p-4 bg-gray-50">
-                                    <h3 className="font-bold text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{prop.address}</h3>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
-                                        <span className="flex items-center"><FileSignature className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
-                                        <span className="flex items-center"><Square className="w-4 h-4 ml-1"/>متراژ: {prop.area} متر</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
 function AddPropertyModal({ isOpen, onClose, userId, db }) {
     const [propertyType, setPropertyType] = useState('apartment');
     const [address, setAddress] = useState('');
@@ -423,7 +355,7 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
 }
 
 
-function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
+function ProfileAndPropertiesPage({ managedUser = null }) {
     const { db, userId: loggedInUserId, userRole: loggedInUserRole } = useAuth();
     const [profile, setProfile] = useState(null);
     const [properties, setProperties] = useState([]);
@@ -495,84 +427,79 @@ function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
     if (isLoading) return <div className="p-8 text-center text-gray-600">در حال بارگذاری کارتابل...</div>;
 
     return (
-        <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
+        <>
             <AddPropertyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} userId={targetUserId} db={db} />
-            <div className="max-w-5xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center">
-                        <User className="mr-3 w-7 h-7 text-indigo-600"/>
-                        کارتابل کاربری {isAsminManaging ? `(مدیریت ${profile?.email || ''})` : ''}
-                    </h1>
-                    <button onClick={onBack} className="bg-white text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-200 transition shadow-sm border">
-                        <ArrowLeft className="w-5 h-5 ml-2"/>بازگشت
-                    </button>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+                    <User className="mr-3 w-7 h-7 text-indigo-600"/>
+                    کارتابل کاربری {isAsminManaging ? `(مدیریت ${profile?.email || ''})` : ''}
+                </h1>
+            </div>
+
+            {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">{error}</div>}
+            {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 text-sm">{success}</div>}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
+                    <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
+                    {profile && (
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">نام کامل</label>
+                                <input type="text" name="fullName" value={profile.fullName || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">شماره تلفن</label>
+                                <input type="text" name="phoneNumber" value={profile.phoneNumber || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">شغل</label>
+                                <input type="text" name="job" value={profile.job || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">محل سکونت</label>
+                                <input type="text" name="location" value={profile.location || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                            </div>
+                        </div>
+                    )}
+                    <div className="mt-6 flex flex-wrap gap-3">
+                        {isEditing ? (
+                            <>
+                                <button onClick={handleSave} className="bg-green-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-green-700 transition"><Save className="w-5 h-5 ml-2"/>ذخیره</button>
+                                <button onClick={() => setIsEditing(false)} className="bg-gray-500 text-white py-2 px-4 rounded-lg flex items-center hover:bg-gray-600 transition"><XCircle className="w-5 h-5 ml-2"/>انصراف</button>
+                            </>
+                        ) : (
+                            <button onClick={() => setIsEditing(true)} className="bg-indigo-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-indigo-700 transition"><Edit className="w-5 h-5 ml-2"/>ویرایش پروفایل</button>
+                        )}
+                    </div>
                 </div>
 
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">{error}</div>}
-                {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 text-sm">{success}</div>}
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
-                        {profile && (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600">نام کامل</label>
-                                    <input type="text" name="fullName" value={profile.fullName || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600">شماره تلفن</label>
-                                    <input type="text" name="phoneNumber" value={profile.phoneNumber || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600">شغل</label>
-                                    <input type="text" name="job" value={profile.job || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600">محل سکونت</label>
-                                    <input type="text" name="location" value={profile.location || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                                </div>
-                            </div>
-                        )}
-                        <div className="mt-6 flex flex-wrap gap-3">
-                            {isEditing ? (
-                                <>
-                                    <button onClick={handleSave} className="bg-green-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-green-700 transition"><Save className="w-5 h-5 ml-2"/>ذخیره</button>
-                                    <button onClick={() => setIsEditing(false)} className="bg-gray-500 text-white py-2 px-4 rounded-lg flex items-center hover:bg-gray-600 transition"><XCircle className="w-5 h-5 ml-2"/>انصراف</button>
-                                </>
-                            ) : (
-                                <button onClick={() => setIsEditing(true)} className="bg-indigo-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-indigo-700 transition"><Edit className="w-5 h-5 ml-2"/>ویرایش پروفایل</button>
-                            )}
-                        </div>
+                <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                    <div className="flex justify-between items-center mb-4 border-b pb-2">
+                       <h2 className="text-lg font-bold text-gray-800">املاک من</h2>
+                       <button onClick={() => setIsModalOpen(true)} className="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg flex items-center hover:bg-indigo-200 transition text-sm font-semibold">
+                           <PlusCircle className="w-5 h-5 ml-2"/> ثبت ملک جدید
+                       </button>
                     </div>
-
-                    <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                           <h2 className="text-lg font-bold text-gray-800">املاک من</h2>
-                           <button onClick={() => setIsModalOpen(true)} className="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg flex items-center hover:bg-indigo-200 transition text-sm font-semibold">
-                               <PlusCircle className="w-5 h-5 ml-2"/> ثبت ملک جدید
-                           </button>
-                        </div>
-                        <div className="space-y-4">
-                            {properties.length > 0 ? (
-                                properties.map(prop => (
-                                    <div key={prop.id} className="border rounded-lg p-4 bg-gray-50">
-                                        <h3 className="font-bold text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{prop.address}</h3>
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
-                                            <span className="flex items-center"><FileSignature className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
-                                            <span className="flex items-center"><Square className="w-4 h-4 ml-1"/>متراژ: {prop.area} متر</span>
-                                        </div>
-                                        {prop.description && <p className="text-sm text-gray-500 mt-2">{prop.description}</p>}
+                    <div className="space-y-4">
+                        {properties.length > 0 ? (
+                            properties.map(prop => (
+                                <div key={prop.id} className="border rounded-lg p-4 bg-gray-50">
+                                    <h3 className="font-bold text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{prop.address}</h3>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
+                                        <span className="flex items-center"><FileSignature className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
+                                        <span className="flex items-center"><Square className="w-4 h-4 ml-1"/>متراژ: {prop.area} متر</span>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-center text-gray-500 py-8">هنوز ملکی ثبت نشده است.</p>
-                            )}
-                        </div>
+                                    {prop.description && <p className="text-sm text-gray-500 mt-2">{prop.description}</p>}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-center text-gray-500 py-8">هنوز ملکی ثبت نشده است.</p>
+                        )}
                     </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
 
@@ -628,7 +555,7 @@ function LeadsTable({ db }) {
 }
 
 
-function AdminDashboard({ onManageUser, onBack }) {
+function AdminDashboard({ onManageUser }) {
   const { db } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -646,13 +573,9 @@ function AdminDashboard({ onManageUser, onBack }) {
   }, [db, adminView]);
 
   return (
-    <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6 sm:p-8">
+    <>
         <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800 flex items-center"><Shield className="mr-3 w-7 h-7 text-red-600"/>پنل مدیریت</h1>
-            <button onClick={onBack} className="bg-white text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-200 transition shadow-sm border">
-                <ArrowLeft className="w-5 h-5 ml-2"/>بازگشت به داشبورد
-            </button>
         </div>
         
         <div className="border-b border-gray-200">
@@ -699,59 +622,179 @@ function AdminDashboard({ onManageUser, onBack }) {
         ) : (
             <LeadsTable db={db} />
         )}
-      </div>
-    </div>
+    </>
   );
 }
 
-function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout, onNavigate }) {
-    const { userRole } = useAuth();
+function PropertyAnalyticsDashboard({ properties, onAddProperty, isDemo = false }) {
+    const [paidMonths, setPaidMonths] = useState([]);
+    const [monthInput, setMonthInput] = useState('1');
+    const totalMonths = 12;
+
+    const handleAddPayment = () => {
+        if (isDemo) return; // Disable in demo mode
+        const monthNumber = parseInt(monthInput, 10);
+        if (!paidMonths.includes(monthNumber)) {
+            setPaidMonths(prev => [...prev, monthNumber].sort((a,b) => a-b));
+        }
+    };
+
+    const keyMetrics = {
+        totalProperties: properties.length,
+        paidMonthsCount: paidMonths.length,
+        openRequests: properties.filter(p => p.status === 'open_request').length || 0,
+    };
+
+    const rentStatusData = [
+        { name: 'پرداخت شده', value: keyMetrics.paidMonthsCount, color: '#10B981' },
+        { name: 'باقیمانده', value: totalMonths - keyMetrics.paidMonthsCount, color: '#EF4444' },
+    ];
+
+    const propertyTypeData = properties.reduce((acc, property) => {
+        const type = property.propertyType || 'نامشخص';
+        const existingType = acc.find(item => item.name === type);
+        if (existingType) {
+            existingType['تعداد'] += 1;
+        } else {
+            acc.push({ name: type, 'تعداد': 1 });
+        }
+        return acc;
+    }, []);
+    
+    const propertyTypeColors = {
+        apartment: '#8884d8',
+        villa: '#82ca9d',
+        store: '#ffc658',
+        land: '#ff8042',
+        'نامشخص': '#d1d5db',
+    };
+
+
     return (
-        <div className="bg-gray-50 min-h-screen">
-            <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-xl font-bold text-gray-900 flex items-center">
-                        {React.createElement(TitleIcon, { className: "w-6 h-6 mr-2" })}
-                        {title}
-                    </h1>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600 hidden sm:block">
-                            خوش آمدید، {currentUser?.email}
-                        </span>
-                        <button onClick={logout} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 transition"><LogOut className="w-5 h-5"/></button>
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><BarChart2 className="w-6 h-6 ml-2 text-indigo-600"/>نمای کلی مدیریت املاک</h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="bg-gray-50 p-4 rounded-lg flex items-center">
+                    <div className="bg-indigo-100 p-3 rounded-full mr-4"><Building className="w-6 h-6 text-indigo-600"/></div>
+                    <div>
+                        <p className="text-sm text-gray-500">کل املاک</p>
+                        <p className="text-2xl font-bold text-gray-800">{keyMetrics.totalProperties}</p>
                     </div>
                 </div>
-            </header>
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="px-4 py-6 sm:px-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        <button onClick={() => onNavigate('profile')} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
-                            <User className="w-10 h-10 text-indigo-500"/>
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800">کارتابل من</h3>
-                                <p className="text-sm text-gray-500">پروفایل و املاک خود را مدیریت کنید</p>
-                            </div>
-                        </button>
-                        {userRole === 'admin' && (
-                            <button onClick={() => onNavigate('admin')} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
-                                <Shield className="w-10 h-10 text-red-500"/>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800">پنل مدیریت</h3>
-                                    <p className="text-sm text-gray-500">کاربران و سرنخ‌ها را مدیریت کنید</p>
-                                </div>
+                <div className="bg-gray-50 p-4 rounded-lg flex items-center">
+                    <div className="bg-green-100 p-3 rounded-full mr-4"><TrendingUp className="w-6 h-6 text-green-600"/></div>
+                    <div>
+                        <p className="text-sm text-gray-500">ماه‌های پرداخت شده</p>
+                        <p className="text-2xl font-bold text-gray-800">{`${keyMetrics.paidMonthsCount} از ${totalMonths}`}</p>
+                    </div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg flex items-center">
+                    <div className="bg-yellow-100 p-3 rounded-full mr-4"><ClipboardList className="w-6 h-6 text-yellow-600"/></div>
+                    <div>
+                        <p className="text-sm text-gray-500">درخواست‌های باز</p>
+                        <p className="text-2xl font-bold text-gray-800">{keyMetrics.openRequests}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div>
+                    <h3 className="font-bold text-center mb-2">وضعیت پرداخت قرارداد (۱۲ ماهه)</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                            <Pie data={rentStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                {rentStatusData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip formatter={(value) => `${value} ماه`}/>
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 flex items-center justify-center gap-2">
+                        <select value={monthInput} onChange={e => setMonthInput(e.target.value)} className="p-2 border rounded-md text-sm" disabled={isDemo}>
+                           {Array.from({length: 12}, (_, i) => i + 1).map(month => (
+                               <option key={month} value={month} disabled={paidMonths.includes(month)}>
+                                   {`ماه ${month}`} {paidMonths.includes(month) ? ' (پرداخت شده)' : ''}
+                                </option>
+                           ))}
+                        </select>
+                        <button onClick={handleAddPayment} disabled={isDemo} className="bg-green-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-green-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed">ثبت پرداخت</button>
+                    </div>
+                </div>
+                <div>
+                    <div className="flex items-center justify-center mb-2">
+                        <h3 className="font-bold text-center">ترکیب املاک</h3>
+                        <button onClick={onAddProperty} className="mr-2 p-1 hover:bg-gray-200 rounded-full disabled:cursor-not-allowed" disabled={isDemo} title="افزودن ملک جدید"><PlusCircle className="w-5 h-5 text-indigo-600"/></button>
+                    </div>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={propertyTypeData} layout="vertical" margin={{ top: 5, right: 20, left: 30, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" allowDecimals={false} />
+                            <YAxis type="category" dataKey="name" width={60} />
+                            <Tooltip formatter={(value) => `${value} ملک`}/>
+                            <Bar dataKey="تعداد" barSize={30}>
+                                {propertyTypeData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={propertyTypeColors[entry.name.toLowerCase()] || '#d1d5db'} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// --- NEW LAYOUT COMPONENTS ---
+function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
+    const { userRole } = useAuth();
+    const navItems = [
+        { name: 'داشبورد', icon: LayoutDashboard, view: 'dashboard' },
+        { name: 'کارتابل من', icon: User, view: 'profile' },
+        { name: 'قراردادها', icon: FileSignature, view: 'contracts' },
+        { name: 'درخواست ها', icon: ClipboardList, view: 'requests' },
+        { name: 'تنظیمات', icon: Settings, view: 'settings' },
+    ];
+    if (userRole === 'admin') {
+        navItems.splice(2, 0, { name: 'پنل مدیریت', icon: Shield, view: 'admin' });
+    }
+
+    return (
+        <div className="w-64 bg-white border-l shadow-md flex-col h-full hidden md:flex">
+            <div className="p-4 border-b">
+                <h2 className="text-xl font-bold text-indigo-600">پلتفرم املاک</h2>
+                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+            </div>
+            <nav className="flex-grow p-4">
+                <ul>
+                    {navItems.map(item => (
+                        <li key={item.name}>
+                            <button onClick={() => onNavigate(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                <item.icon className="w-5 h-5 ml-3"/>
+                                <span>{item.name}</span>
                             </button>
-                        )}
-                        {features.map((feature, index) => (
-                            <div key={index} className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4 opacity-60">
-                                {React.createElement(feature.icon, { className: "w-10 h-10 text-green-500" })}
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800">{feature.title}</h3>
-                                    <p className="text-sm text-gray-500">{feature.description}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                        </li>
+                    ))}
+                </ul>
+            </nav>
+            <div className="p-4 border-t">
+                <button onClick={onLogout} className="w-full flex items-center p-3 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                    <LogOut className="w-5 h-5 ml-3"/>
+                    <span>{isDemo ? 'خروج از حالت نمایش' : 'خروج از حساب'}</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function AppLayout({ children, onNavigate, onLogout, user, activeView, isDemo = false }) {
+    return (
+        <div className="flex h-screen bg-gray-100">
+            <Sidebar onNavigate={onNavigate} onLogout={onLogout} user={user} activeView={activeView} isDemo={isDemo} />
+            <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
+                {children}
             </main>
         </div>
     );
@@ -759,11 +802,34 @@ function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout
 
 // --- کامپوننت اصلی مدیریت نمایش صفحات ---
 function MainAppContent() {
-  const { user, loading, userRole, logout, isDemo, endDemo } = useAuth();
+  const { user, loading, userRole, logout, isDemo, endDemo, userId, db } = useAuth();
   const [view, setView] = useState('dashboard');
   const [managedUser, setManagedUser] = useState(null);
+  const [properties, setProperties] = useState([]);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(true);
+  const [isAddPropertyModalOpen, setIsAddPropertyModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !db) {
+        setIsLoadingProperties(false);
+        return;
+    };
+
+    setIsLoadingProperties(true);
+    const q = query(collection(db, "properties"), where("userId", "==", userId));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const props = [];
+        querySnapshot.forEach((doc) => {
+            props.push({ id: doc.id, ...doc.data() });
+        });
+        setProperties(props);
+        setIsLoadingProperties(false);
+    });
+    return () => unsubscribe();
+  }, [userId, db]);
 
   const handleNavigation = (targetView, data = null) => {
+      if (isDemo) return;
       if (targetView === 'manageUser') {
           setManagedUser(data);
           setView('profile');
@@ -778,30 +844,47 @@ function MainAppContent() {
   }
 
   if (isDemo) {
-    return <DemoDashboard onExitDemo={endDemo} onRegisterClick={endDemo} />;
+    const demoUser = { email: 'demo@example.com' };
+    const sampleProperties = [
+        { id: 1, address: 'تهران، خیابان سعادت آباد، برج کاج', propertyType: 'apartment', area: 150 },
+        { id: 2, address: 'اصفهان، خیابان چهارباغ، مجتمع پارسیان', propertyType: 'store', area: 50 },
+        { id: 3, address: 'لواسان، شهرک باستی، ویلای شماره ۱۲', propertyType: 'villa', area: 800 },
+    ];
+    
+    return (
+        <AppLayout onNavigate={handleNavigation} onLogout={endDemo} user={demoUser} activeView="dashboard" isDemo={true}>
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mb-6 text-center">
+                <h2 className="text-2xl font-bold flex items-center justify-center"><Zap className="w-7 h-7 ml-2"/>تمام امکانات را آزاد کنید!</h2>
+                <p className="mt-2">با ثبت‌نام کامل، می‌توانید املاک خود را ثبت و مدیریت کنید، قراردادهای رسمی ایجاد نمایید و به تمام ابزارهای پیشرفته دسترسی داشته باشید.</p>
+                <button onClick={endDemo} className="mt-4 bg-white text-indigo-600 font-bold py-2 px-6 rounded-lg hover:bg-gray-200 transition-transform transform hover:scale-105">
+                    ثبت‌نام و فعال‌سازی امکانات
+                </button>
+            </div>
+            <PropertyAnalyticsDashboard properties={sampleProperties} onAddProperty={() => {}} isDemo={true} />
+        </AppLayout>
+    );
   }
 
   if (user) {
+    let content;
     switch (view) {
       case 'profile': 
-        return <ProfileAndPropertiesPage onBack={() => handleNavigation(userRole === 'admin' && managedUser ? 'admin' : 'dashboard')} managedUser={managedUser} />;
+        content = <ProfileAndPropertiesPage managedUser={managedUser} />;
+        break;
       case 'admin': 
-        return <AdminDashboard onBack={() => handleNavigation('dashboard')} onManageUser={(userToManage) => handleNavigation('manageUser', userToManage)} />;
+        content = <AdminDashboard onManageUser={(userToManage) => handleNavigation('manageUser', userToManage)} />;
+        break;
       case 'dashboard':
       default:
-          const dashboardProps = { 
-              currentUser: user, 
-              logout, 
-              onNavigate: handleNavigation,
-          };
-          
-          const features = [
-              { icon: ClipboardList, title: 'بررسی درخواست‌ها', description: 'درخواست‌های اجاره را ببینید' },
-              { icon: Wallet, title: 'پیگیری پرداخت‌ها', description: 'وضعیت پرداخت اجاره‌ها' },
-          ];
-
-          return <DashboardLayout title="داشبورد اصلی" icon={Home} features={features} {...dashboardProps} />;
+        content = isLoadingProperties ? <p>در حال بارگذاری داشبورد...</p> : <PropertyAnalyticsDashboard properties={properties} onAddProperty={() => setIsAddPropertyModalOpen(true)} />;
     }
+    
+    return (
+        <AppLayout onNavigate={handleNavigation} onLogout={logout} user={user} activeView={view}>
+            <AddPropertyModal isOpen={isAddPropertyModalOpen} onClose={() => setIsAddPropertyModalOpen(false)} userId={userId} db={db} />
+            {content}
+        </AppLayout>
+    );
   }
 
   return <AuthForm />;
