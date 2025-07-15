@@ -1,10 +1,10 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot } from 'firebase/firestore';
 
 // --- آیکون‌ها ---
-import { Home, Users, Search, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X } from 'lucide-react';
+import { Home, Users, Search, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X, PlusCircle, Building, Map, Square, FileSignature } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -26,8 +26,6 @@ function AuthProvider({ children }) {
   const [demoInfo, setDemoInfo] = useState(null);
 
   useEffect(() => {
-    // NOTE: Firebase config keys are hardcoded because this environment doesn't support .env files.
-    // In a real project with a build step, use process.env.
     const firebaseConfig = {
       apiKey: "AIzaSyBRtsKWqpXK-Fl0xitQEctJ01DT6KmXGyo",
       authDomain: "amlawk-f6f0d.firebaseapp.com",
@@ -47,7 +45,6 @@ function AuthProvider({ children }) {
 
       const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
         if (currentUser) {
-          console.log("Auth state changed: User is logged in.", currentUser.uid);
           setUser(currentUser);
           setUserId(currentUser.uid);
           const userDocRef = doc(dbInstance, 'users', currentUser.uid);
@@ -55,16 +52,12 @@ function AuthProvider({ children }) {
           
           if (docSnap.exists()) {
             const role = docSnap.data().role;
-            // DEBUGGING LOG: Log the fetched role from Firestore.
-            console.log(`User role fetched from Firestore for ${currentUser.email}:`, role);
             setUserRole(role);
           } else {
-            console.warn(`No user profile found in Firestore for UID: ${currentUser.uid}`);
             setUserRole(null);
           }
           setIsDemo(false);
         } else {
-          console.log("Auth state changed: User is logged out.");
           setUser(null);
           setUserId(null);
           setUserRole(null);
@@ -78,12 +71,11 @@ function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password, selectedRole) => {
+  const login = async (email, password) => {
       setLoading(true);
       setError('');
       try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          // onAuthStateChanged will handle setting user state and role.
+          await signInWithEmailAndPassword(auth, email, password);
       } catch(err) {
           setError('ایمیل یا رمز عبور اشتباه است.');
       } finally {
@@ -112,7 +104,6 @@ function AuthProvider({ children }) {
         job: '',
         location: ''
       });
-      // onAuthStateChanged will handle the rest.
     } catch (err) {
         setError('خطا در ثبت نام. ممکن است این ایمیل قبلا استفاده شده باشد.');
     } finally {
@@ -136,7 +127,7 @@ function AuthProvider({ children }) {
     try {
       if (db) await addDoc(collection(db, "demo_leads"), { phoneNumber, role, timestamp: new Date() });
     } catch (err) {
-      console.error("Could not save demo lead (likely due to Firestore rules):", err);
+      console.error("Could not save demo lead:", err);
     } finally {
       setDemoInfo({ phoneNumber, role });
       setIsDemo(true);
@@ -154,8 +145,7 @@ function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-
-// --- ۳. کامپوننت‌های رابط کاربری (UI) ---
+// --- کامپوننت‌های UI ---
 
 function RoleSelector({ selectedRole, setSelectedRole, disabled }) {
   const roles = [
@@ -191,7 +181,7 @@ function AuthForm() {
     e.preventDefault();
     setMessage('');
     if (authFlowState === 'register') await register(email, password, selectedRole);
-    else if (authFlowState === 'login') await login(email, password, selectedRole);
+    else if (authFlowState === 'login') await login(email, password);
     else if (authFlowState === 'demo') await startDemo(phoneNumber, selectedRole);
   };
 
@@ -239,7 +229,7 @@ function AuthForm() {
         </h2>
         {authError && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4 text-sm" role="alert">{authError}</div>}
         <form onSubmit={handleMainSubmit} className="space-y-5">
-          <div>
+          <div className={`${authFlowState === 'login' ? 'hidden' : 'block'}`}>
             <label className="block text-gray-700 text-sm font-semibold mb-2">نقش خود را انتخاب کنید:</label>
             <RoleSelector selectedRole={selectedRole} setSelectedRole={setSelectedRole} disabled={loading}/>
           </div>
@@ -282,214 +272,125 @@ function AuthForm() {
   );
 }
 
-function SampleContractModal({ isOpen, onClose }) {
+// --- کامپوننت‌های جدید و بازطراحی شده ---
+
+function AddPropertyModal({ isOpen, onClose, userId, db }) {
+    const [propertyType, setPropertyType] = useState('apartment');
+    const [address, setAddress] = useState('');
+    const [area, setArea] = useState('');
+    const [description, setDescription] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
     if (!isOpen) return null;
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            await addDoc(collection(db, 'properties'), {
+                userId,
+                propertyType,
+                address,
+                area: Number(area),
+                description,
+                createdAt: new Date(),
+            });
+            onClose(); // Close modal on success
+        } catch (error) {
+            console.error("Error adding property: ", error);
+            // Optionally, show an error message to the user
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg relative">
                 <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"><X size={24}/></button>
-                <h2 className="text-xl font-bold mb-4">ایجاد قرارداد نمونه</h2>
-                <p className="text-gray-600 mb-4">در نسخه کامل، شما می‌توانید قراردادهای رسمی با جزئیات کامل ایجاد، امضا و مدیریت کنید. این یک پیش‌نمایش ساده است.</p>
-                <div className="space-y-4">
+                <h2 className="text-xl font-bold mb-4 flex items-center"><PlusCircle className="w-6 h-6 ml-2 text-indigo-600"/>ثبت ملک جدید</h2>
+                <form onSubmit={handleSave} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">طرف اول (موجر/فروشنده)</label>
-                        <input type="text" placeholder="نام کامل" className="mt-1 w-full p-2 border rounded-md bg-gray-100" disabled/>
+                        <label className="block text-sm font-medium text-gray-700">نوع ملک</label>
+                        <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="mt-1 w-full p-2 border rounded-md">
+                            <option value="apartment">آپارتمان</option>
+                            <option value="villa">ویلا</option>
+                            <option value="store">مغازه</option>
+                            <option value="land">زمین</option>
+                        </select>
                     </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-700">طرف دوم (مستاجر/خریدار)</label>
-                        <input type="text" placeholder="نام کامل" className="mt-1 w-full p-2 border rounded-md bg-gray-100" disabled/>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">آدرس</label>
+                        <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1 w-full p-2 border rounded-md" />
                     </div>
-                     <div>
-                        <label className="block text-sm font-medium text-gray-700">مبلغ قرارداد (تومان)</label>
-                        <input type="text" placeholder="مثال: 50,000,000" className="mt-1 w-full p-2 border rounded-md bg-gray-100" disabled/>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">متراژ (متر مربع)</label>
+                        <input type="number" value={area} onChange={(e) => setArea(e.target.value)} required className="mt-1 w-full p-2 border rounded-md" />
                     </div>
-                </div>
-                <div className="mt-6 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md">
-                    <p className="font-bold">قابلیت ویژه!</p>
-                    <p>برای فعال‌سازی فرم کامل و ذخیره قرارداد، حساب کاربری خود را ایجاد کنید.</p>
-                </div>
-                <button onClick={onClose} className="mt-6 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700">متوجه شدم</button>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">توضیحات</label>
+                        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="3" className="mt-1 w-full p-2 border rounded-md"></textarea>
+                    </div>
+                    <div className="pt-4 flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300">انصراف</button>
+                        <button type="submit" disabled={isSaving} className="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                            {isSaving ? 'در حال ذخیره...' : 'ذخیره ملک'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
 }
 
-function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout, isDemo, onRegisterClick, onNavigateToProfile, showAdminPanel }) {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    // DEBUGGING LOG: Check if the admin panel should be shown.
-    console.log("DashboardLayout received showAdminPanel:", showAdminPanel);
 
-    const handleFeatureClick = (action) => {
-        if (action === 'sample_contract') setIsModalOpen(true);
-    };
-    
-    return (
-        <div className="bg-gray-50 min-h-screen">
-            <SampleContractModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-            {isDemo && (
-                <div className="bg-green-600 text-white text-center p-3">
-                    <Sparkles className="inline-block w-5 h-5 mr-2" />
-                    شما در حالت دمو هستید. برای دسترسی به تمام امکانات، <button onClick={onRegisterClick} className="font-bold underline hover:text-green-200">ثبت‌نام کنید</button>!
-                </div>
-            )}
-            <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                    <h1 className="text-xl font-bold text-gray-900 flex items-center">
-                        {React.createElement(TitleIcon, { className: "w-6 h-6 mr-2" })}
-                        {title}
-                    </h1>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600 hidden sm:block">
-                            {isDemo ? `حساب دمو` : `خوش آمدید، ${currentUser?.email}`}
-                        </span>
-                        <button onClick={logout} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 transition"><LogOut className="w-5 h-5"/></button>
-                    </div>
-                </div>
-            </header>
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="px-4 py-6 sm:px-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                        {!isDemo && (
-                          <button onClick={onNavigateToProfile} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
-                              <User className="w-10 h-10 text-indigo-500"/>
-                              <div>
-                                  <h3 className="text-lg font-bold text-gray-800">پروفایل من</h3>
-                                  <p className="text-sm text-gray-500">اطلاعات کاربری خود را ویرایش کنید</p>
-                              </div>
-                          </button>
-                        )}
-                        {/* More robust check for admin panel */}
-                        {showAdminPanel && (
-                            <button onClick={() => onNavigateToProfile('admin')} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
-                                <Shield className="w-10 h-10 text-red-500"/>
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800">پنل مدیریت</h3>
-                                    <p className="text-sm text-gray-500">کاربران سیستم را مدیریت کنید</p>
-                                </div>
-                            </button>
-                        )}
-                        {features.map((feature, index) => (
-                            <button key={index} onClick={() => handleFeatureClick(feature.action)} className={`bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4 ${isDemo && !feature.action ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                {React.createElement(feature.icon, { className: "w-10 h-10 text-green-500" })}
-                                <div>
-                                    <h3 className="text-lg font-bold text-gray-800">{feature.title}</h3>
-                                    <p className="text-sm text-gray-500">{feature.description}</p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </main>
-        </div>
-    );
-}
-
-function LandlordDashboard(props) {
-    const demoFeatures = [ { icon: FileText, title: 'ایجاد قرارداد نمونه', description: 'یک پیش‌نمایش از قرارداد اجاره بسازید', action: 'sample_contract' }, { icon: Wallet, title: 'پیگیری پرداخت‌ها', description: 'وضعیت پرداخت اجاره‌ها را ببینید' }, ];
-    const realFeatures = [ { icon: ClipboardList, title: 'بررسی درخواست‌ها', description: 'درخواست‌های اجاره را ببینید' }, { icon: Wallet, title: 'پیگیری پرداخت‌ها', description: 'وضعیت پرداخت اجاره‌ها' }, ];
-    return <DashboardLayout title="داشبورد موجر" icon={Home} features={props.isDemo ? demoFeatures : realFeatures} {...props} />;
-}
-
-function TenantDashboard(props) {
-    const demoFeatures = [ { icon: Search, title: 'جستجوی ملک', description: 'ملک‌های جدید را پیدا کنید' }, { icon: FileText, title: 'مشاهده قرارداد نمونه', description: 'یک پیش‌نمایش از قرارداد اجاره ببینید', action: 'sample_contract' }, ];
-    const realFeatures = [ { icon: Search, title: 'جستجوی ملک', description: 'ملک‌های جدید را پیدا کنید' }, { icon: CreditCard, title: 'پرداخت اجاره', description: 'اجاره ماهانه را پرداخت کنید' }, ];
-    return <DashboardLayout title="داشبورد مستأجر" icon={Users} features={props.isDemo ? demoFeatures : realFeatures} {...props} />;
-}
-
-// --- ۴. کامپوننت اصلی مدیریت نمایش صفحات ---
-function MainAppContent() {
-  const { user, loading, userRole, logout, isDemo, demoInfo, endDemo } = useAuth();
-  const [view, setView] = useState('dashboard');
-
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen font-bold text-xl text-gray-500">در حال بارگذاری...</div>;
-  }
-
-  if (isDemo) {
-      const demoProps = { logout: endDemo, isDemo: true, onRegisterClick: endDemo };
-      switch (demoInfo.role) {
-          case 'landlord': return <LandlordDashboard {...demoProps} />;
-          case 'tenant': return <TenantDashboard {...demoProps} />;
-          default: return <LandlordDashboard {...demoProps} />;
-      }
-  }
-
-  if (user) {
-    // DEBUGGING LOG: Check the role before rendering dashboards.
-    console.log(`MainAppContent: Rendering dashboard for user with role: "${userRole}"`);
-
-    switch (view) {
-      case 'profile': return <UserProfilePage onBack={() => setView('dashboard')} />;
-      case 'admin': return <AdminDashboard onUserSelect={(uid) => console.log(`Admin managing user: ${uid}`)} onBackToUserDashboard={() => setView('dashboard')} />;
-      case 'dashboard':
-      default:
-          const dashboardProps = { 
-              currentUser: user, 
-              logout, 
-              onNavigateToProfile: (targetView = 'profile') => setView(targetView),
-              showAdminPanel: userRole === 'admin'
-          };
-          
-          // Admin sees the landlord dashboard but with the admin panel button.
-          if (userRole === 'admin') {
-              return <LandlordDashboard {...dashboardProps} />;
-          }
-          
-          switch (userRole) {
-              case 'landlord': return <LandlordDashboard {...dashboardProps} />;
-              case 'tenant': return <TenantDashboard {...dashboardProps} />;
-              default:
-                  return (
-                      <div className="flex flex-col items-center justify-center min-h-screen">
-                          <p className="text-red-500 mb-4">نقش شما در سیستم تعریف نشده یا در حال بارگذاری است.</p>
-                          <button onClick={logout} className="bg-indigo-600 text-white py-2 px-4 rounded-lg">خروج</button>
-                      </div>
-                  );
-          }
-    }
-  }
-
-  return <AuthForm />;
-}
-
-// --- ۵. نقطه شروع اپلیکیشن ---
-export default function App() {
-  return (
-    <AuthProvider>
-      <MainAppContent />
-    </AuthProvider>
-  );
-}
-
-// --- کامپوننت‌های دیگر ---
-function UserProfilePage({ onBack }) {
-    const { db, userId } = useAuth();
+function ProfileAndPropertiesPage({ onBack, managedUser = null }) {
+    const { db, userId: loggedInUserId, userRole: loggedInUserRole } = useAuth();
     const [profile, setProfile] = useState(null);
+    const [properties, setProperties] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    const isAsminManaging = managedUser && loggedInUserRole === 'admin';
+    const targetUserId = isAsminManaging ? managedUser.id : loggedInUserId;
+
     useEffect(() => {
+        if (!targetUserId || !db) return;
+
+        // Fetch user profile
         const fetchProfile = async () => {
-            if (!userId || !db) return;
-            setIsLoading(true);
-            try {
-                const docRef = doc(db, 'users', userId);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setProfile({ id: docSnap.id, ...docSnap.data() });
-                } else {
-                    setError('پروفایل یافت نشد.');
-                }
-            } catch (err) {
-                setError('خطا در دریافت اطلاعات پروفایل.');
+            const docRef = doc(db, 'users', targetUserId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setProfile({ id: docSnap.id, ...docSnap.data() });
+            } else {
+                setError('پروفایل یافت نشد.');
             }
-            setIsLoading(false);
         };
-        fetchProfile();
-    }, [userId, db]);
+
+        // Fetch user properties with real-time updates
+        const q = query(collection(db, "properties"), where("userId", "==", targetUserId));
+        const unsubscribeProperties = onSnapshot(q, (querySnapshot) => {
+            const props = [];
+            querySnapshot.forEach((doc) => {
+                props.push({ id: doc.id, ...doc.data() });
+            });
+            setProperties(props);
+        }, (err) => {
+            console.error("Error fetching properties:", err);
+            setError("خطا در دریافت لیست املاک.");
+        });
+        
+        Promise.all([fetchProfile()]).finally(() => setIsLoading(false));
+
+        return () => { // Cleanup subscription on unmount
+            unsubscribeProperties();
+        };
+
+    }, [targetUserId, db]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -500,7 +401,7 @@ function UserProfilePage({ onBack }) {
         setError('');
         setSuccess('');
         try {
-            const userRef = doc(db, 'users', userId);
+            const userRef = doc(db, 'users', targetUserId);
             await updateDoc(userRef, {
                 fullName: profile.fullName || '',
                 phoneNumber: profile.phoneNumber || '',
@@ -514,51 +415,94 @@ function UserProfilePage({ onBack }) {
         }
     };
 
-    if (isLoading) return <div className="p-8 text-center text-gray-600">در حال بارگذاری پروفایل...</div>;
+    if (isLoading) return <div className="p-8 text-center text-gray-600">در حال بارگذاری کارتابل...</div>;
 
     return (
-        <div className="p-4 sm:p-8 bg-gray-50 min-h-screen">
-            <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-6 sm:p-8">
-                <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center"><User className="mr-3 w-7 h-7 text-indigo-600"/>پروفایل کاربری</h1>
+        <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
+            <AddPropertyModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} userId={targetUserId} db={db} />
+            <div className="max-w-5xl mx-auto">
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+                        <User className="mr-3 w-7 h-7 text-indigo-600"/>
+                        کارتابل کاربری {isAsminManaging ? `(مدیریت ${profile?.email || ''})` : ''}
+                    </h1>
+                    <button onClick={onBack} className="bg-white text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-200 transition shadow-sm border">
+                        <ArrowLeft className="w-5 h-5 ml-2"/>بازگشت
+                    </button>
+                </div>
+
                 {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">{error}</div>}
                 {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 text-sm">{success}</div>}
-                {profile && (
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-600">نام کامل</label>
-                            <input type="text" name="fullName" value={profile.fullName || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-600">شماره تلفن</label>
-                            <input type="text" name="phoneNumber" value={profile.phoneNumber || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-600">شغل</label>
-                            <input type="text" name="job" value={profile.job || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-600">محل سکونت</label>
-                            <input type="text" name="location" value={profile.location || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Profile Card */}
+                    <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
+                        <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
+                        {profile && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-600">نام کامل</label>
+                                    <input type="text" name="fullName" value={profile.fullName || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-600">شماره تلفن</label>
+                                    <input type="text" name="phoneNumber" value={profile.phoneNumber || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-600">شغل</label>
+                                    <input type="text" name="job" value={profile.job || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-600">محل سکونت</label>
+                                    <input type="text" name="location" value={profile.location || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
+                                </div>
+                            </div>
+                        )}
+                        <div className="mt-6 flex flex-wrap gap-3">
+                            {isEditing ? (
+                                <>
+                                    <button onClick={handleSave} className="bg-green-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-green-700 transition"><Save className="w-5 h-5 ml-2"/>ذخیره</button>
+                                    <button onClick={() => setIsEditing(false)} className="bg-gray-500 text-white py-2 px-4 rounded-lg flex items-center hover:bg-gray-600 transition"><XCircle className="w-5 h-5 ml-2"/>انصراف</button>
+                                </>
+                            ) : (
+                                <button onClick={() => setIsEditing(true)} className="bg-indigo-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-indigo-700 transition"><Edit className="w-5 h-5 ml-2"/>ویرایش پروفایل</button>
+                            )}
                         </div>
                     </div>
-                )}
-                <div className="mt-8 flex flex-wrap gap-4">
-                    {isEditing ? (
-                        <>
-                            <button onClick={handleSave} className="bg-green-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-green-700 transition"><Save className="w-5 h-5 mr-2"/>ذخیره</button>
-                            <button onClick={() => setIsEditing(false)} className="bg-gray-500 text-white py-2 px-4 rounded-lg flex items-center hover:bg-gray-600 transition"><XCircle className="w-5 h-5 mr-2"/>انصراف</button>
-                        </>
-                    ) : (
-                        <button onClick={() => setIsEditing(true)} className="bg-indigo-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-indigo-700 transition"><Edit className="w-5 h-5 mr-2"/>ویرایش پروفایل</button>
-                    )}
-                    <button onClick={onBack} className="bg-gray-700 text-white py-2 px-4 rounded-lg flex items-center hover:bg-gray-800 transition"><ArrowLeft className="w-5 h-5 mr-2"/>بازگشت به داشبورد</button>
+
+                    {/* Properties Card */}
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-md p-6">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2">
+                           <h2 className="text-lg font-bold text-gray-800">املاک من</h2>
+                           <button onClick={() => setIsModalOpen(true)} className="bg-indigo-100 text-indigo-700 py-2 px-4 rounded-lg flex items-center hover:bg-indigo-200 transition text-sm font-semibold">
+                               <PlusCircle className="w-5 h-5 ml-2"/> ثبت ملک جدید
+                           </button>
+                        </div>
+                        <div className="space-y-4">
+                            {properties.length > 0 ? (
+                                properties.map(prop => (
+                                    <div key={prop.id} className="border rounded-lg p-4 bg-gray-50">
+                                        <h3 className="font-bold text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{prop.address}</h3>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
+                                            <span className="flex items-center"><FileSignature className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
+                                            <span className="flex items-center"><Square className="w-4 h-4 ml-1"/>متراژ: {prop.area} متر</span>
+                                        </div>
+                                        {prop.description && <p className="text-sm text-gray-500 mt-2">{prop.description}</p>}
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-center text-gray-500 py-8">هنوز ملکی ثبت نشده است.</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     );
 }
 
-function AdminDashboard({ onUserSelect, onBackToUserDashboard }) {
+
+function AdminDashboard({ onManageUser, onBack }) {
   const { db } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -575,13 +519,19 @@ function AdminDashboard({ onUserSelect, onBackToUserDashboard }) {
   }, [db]);
 
   return (
-    <div className="p-4 sm:p-8 bg-gray-50 min-h-screen">
+    <div className="p-4 sm:p-8 bg-gray-100 min-h-screen">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md p-6 sm:p-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center"><Shield className="mr-3 w-7 h-7 text-red-600"/>پنل مدیریت</h1>
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center"><Shield className="mr-3 w-7 h-7 text-red-600"/>پنل مدیریت</h1>
+            <button onClick={onBack} className="bg-white text-gray-700 py-2 px-4 rounded-lg flex items-center hover:bg-gray-200 transition shadow-sm border">
+                <ArrowLeft className="w-5 h-5 ml-2"/>بازگشت به داشبورد
+            </button>
+        </div>
+        
         {isLoading ? <p>در حال بارگذاری لیست کاربران...</p> : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-100">
+              <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ایمیل</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نقش</th>
@@ -592,9 +542,9 @@ function AdminDashboard({ onUserSelect, onBackToUserDashboard }) {
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{u.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{u.role}</span></td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{u.role || 'کاربر'}</span></td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button onClick={() => onUserSelect(u.id)} className="text-indigo-600 hover:text-indigo-900">مدیریت کاربر</button>
+                        <button onClick={() => onManageUser(u)} className="text-indigo-600 hover:text-indigo-900">مدیریت کاربر</button>
                     </td>
                   </tr>
                 ))}
@@ -602,8 +552,120 @@ function AdminDashboard({ onUserSelect, onBackToUserDashboard }) {
             </table>
           </div>
         )}
-        <button onClick={onBackToUserDashboard} className="mt-8 px-5 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition">بازگشت به داشبورد</button>
       </div>
     </div>
+  );
+}
+
+function DashboardLayout({ title, icon: TitleIcon, features, currentUser, logout, onNavigate }) {
+    const { userRole } = useAuth();
+    return (
+        <div className="bg-gray-50 min-h-screen">
+            <header className="bg-white shadow-sm">
+                <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+                    <h1 className="text-xl font-bold text-gray-900 flex items-center">
+                        {React.createElement(TitleIcon, { className: "w-6 h-6 mr-2" })}
+                        {title}
+                    </h1>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-600 hidden sm:block">
+                            خوش آمدید، {currentUser?.email}
+                        </span>
+                        <button onClick={logout} className="p-2 rounded-full text-gray-500 hover:bg-gray-200 transition"><LogOut className="w-5 h-5"/></button>
+                    </div>
+                </div>
+            </header>
+            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <div className="px-4 py-6 sm:px-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        <button onClick={() => onNavigate('profile')} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
+                            <User className="w-10 h-10 text-indigo-500"/>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800">کارتابل من</h3>
+                                <p className="text-sm text-gray-500">پروفایل و املاک خود را مدیریت کنید</p>
+                            </div>
+                        </button>
+                        {userRole === 'admin' && (
+                            <button onClick={() => onNavigate('admin')} className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-4">
+                                <Shield className="w-10 h-10 text-red-500"/>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800">پنل مدیریت</h3>
+                                    <p className="text-sm text-gray-500">کاربران سیستم را مدیریت کنید</p>
+                                </div>
+                            </button>
+                        )}
+                        {features.map((feature, index) => (
+                            <div key={index} className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4 opacity-60">
+                                {React.createElement(feature.icon, { className: "w-10 h-10 text-green-500" })}
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800">{feature.title}</h3>
+                                    <p className="text-sm text-gray-500">{feature.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+}
+
+// --- کامپوننت اصلی مدیریت نمایش صفحات ---
+function MainAppContent() {
+  const { user, loading, userRole, logout, isDemo, demoInfo, endDemo } = useAuth();
+  const [view, setView] = useState('dashboard');
+  const [managedUser, setManagedUser] = useState(null);
+
+  const handleNavigation = (targetView, data = null) => {
+      if (targetView === 'manageUser') {
+          setManagedUser(data);
+          setView('profile'); // Navigate to profile page to manage the user
+      } else {
+          setManagedUser(null); // Clear managed user when going to other views
+          setView(targetView);
+      }
+  };
+
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen font-bold text-xl text-gray-500">در حال بارگذاری...</div>;
+  }
+
+  if (isDemo) {
+    // Demo view can be simplified or removed if not needed
+    return <AuthForm />;
+  }
+
+  if (user) {
+    switch (view) {
+      case 'profile': 
+        return <ProfileAndPropertiesPage onBack={() => handleNavigation('dashboard')} managedUser={managedUser} />;
+      case 'admin': 
+        return <AdminDashboard onBack={() => handleNavigation('dashboard')} onManageUser={(userToManage) => handleNavigation('manageUser', userToManage)} />;
+      case 'dashboard':
+      default:
+          const dashboardProps = { 
+              currentUser: user, 
+              logout, 
+              onNavigate: handleNavigation,
+          };
+          
+          const features = [
+              { icon: ClipboardList, title: 'بررسی درخواست‌ها', description: 'درخواست‌های اجاره را ببینید' },
+              { icon: Wallet, title: 'پیگیری پرداخت‌ها', description: 'وضعیت پرداخت اجاره‌ها' },
+          ];
+
+          return <DashboardLayout title="داشبورد اصلی" icon={Home} features={features} {...dashboardProps} />;
+    }
+  }
+
+  return <AuthForm />;
+}
+
+// --- نقطه شروع اپلیکیشن ---
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainAppContent />
+    </AuthProvider>
   );
 }
