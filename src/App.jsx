@@ -5,7 +5,7 @@ import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addD
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // --- آیکون‌ها ---
-import { Home, Users, ClipboardList, Wallet, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Phone, Briefcase, MapPin, Shield, Edit, Save, XCircle, ArrowLeft, AlertTriangle, Sparkles, X, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Menu, Settings, FilePlus, LayoutDashboard, TrendingUp } from 'lucide-react';
+import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -318,7 +318,7 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-                <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"><X size={24}/></button>
+                <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"><XIcon size={24}/></button>
                 <h2 className="text-xl font-bold mb-4 flex items-center"><PlusCircle className="w-6 h-6 ml-2 text-indigo-600"/>ثبت ملک جدید</h2>
                 <form onSubmit={handleSave} className="space-y-4">
                     <div>
@@ -632,7 +632,7 @@ function PropertyAnalyticsDashboard({ properties, onAddProperty, isDemo = false 
     const totalMonths = 12;
 
     const handleAddPayment = () => {
-        if (isDemo) return; // Disable in demo mode
+        if (isDemo) return; 
         const monthNumber = parseInt(monthInput, 10);
         if (!paidMonths.includes(monthNumber)) {
             setPaidMonths(prev => [...prev, monthNumber].sort((a,b) => a-b));
@@ -757,8 +757,10 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
         { name: 'درخواست ها', icon: ClipboardList, view: 'requests' },
         { name: 'تنظیمات', icon: Settings, view: 'settings' },
     ];
-    if (userRole === 'admin') {
-        navItems.splice(2, 0, { name: 'پنل مدیریت', icon: Shield, view: 'admin' });
+    if (userRole === 'admin' || isDemo) { // Show admin panel for admin and in demo
+        if(!navItems.find(item => item.view === 'admin')){
+             navItems.splice(2, 0, { name: 'پنل مدیریت', icon: Shield, view: 'admin' });
+        }
     }
 
     return (
@@ -771,7 +773,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
                 <ul>
                     {navItems.map(item => (
                         <li key={item.name}>
-                            <button onClick={() => onNavigate(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <button onClick={() => onNavigate(item.view)} disabled={isDemo && item.view !== 'dashboard'} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                 <item.icon className="w-5 h-5 ml-3"/>
                                 <span>{item.name}</span>
                             </button>
