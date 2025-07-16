@@ -78,7 +78,6 @@ function AuthProvider({ children }) {
           const userCredential = await signInWithEmailAndPassword(auth, email, password);
           const loggedInUser = userCredential.user;
           
-          // Log login activity
           await addDoc(collection(db, 'activity_logs'), {
               userId: loggedInUser.uid,
               userEmail: loggedInUser.email,
@@ -86,7 +85,6 @@ function AuthProvider({ children }) {
               timestamp: serverTimestamp()
           });
 
-          // Update last login time
           const userDocRef = doc(db, 'users', loggedInUser.uid);
           await updateDoc(userDocRef, {
               lastLogin: serverTimestamp()
@@ -475,7 +473,7 @@ function ProfileAndPropertiesPage({ managedUser = null }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 bg-white rounded-xl shadow-md p-6 h-fit">
                     <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">اطلاعات شخصی</h2>
-                    {profile && (
+                    {profile ? (
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-600">نام کامل</label>
@@ -494,7 +492,7 @@ function ProfileAndPropertiesPage({ managedUser = null }) {
                                 <input type="text" name="location" value={profile.location || ''} onChange={handleInputChange} disabled={!isEditing} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"/>
                             </div>
                         </div>
-                    )}
+                    ) : <p>اطلاعات پروفایل در دسترس نیست.</p>}
                     <div className="mt-6 flex flex-wrap gap-3">
                         {isEditing ? (
                             <>
