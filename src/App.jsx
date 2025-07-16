@@ -133,7 +133,12 @@ function AuthProvider({ children }) {
         location: ''
       });
     } catch (err) {
-        setError('خطا در ثبت نام. ممکن است این ایمیل قبلا استفاده شده باشد.');
+        if (err.code === 'auth/email-already-in-use') {
+            setError('این ایمیل قبلا استفاده شده است.');
+        } else {
+            setError('خطا در ثبت نام. لطفا دوباره تلاش کنید.');
+            console.error("Registration Error:", err);
+        }
     } finally {
       setLoading(false);
     }
