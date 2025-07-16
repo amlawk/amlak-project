@@ -724,13 +724,16 @@ function AdminDashboard({ onManageUser }) {
   );
 }
 
-function PropertyAnalyticsDashboard({ properties, onAddProperty, isDemo = false }) {
+function PropertyAnalyticsDashboard({ properties, onAddProperty, isDemo = false, onRegisterClick }) {
     const [paidMonths, setPaidMonths] = useState([]);
     const [monthInput, setMonthInput] = useState('1');
     const totalMonths = 12;
 
     const handleAddPayment = () => {
-        if (isDemo) return; 
+        if (isDemo) {
+            onRegisterClick();
+            return;
+        }
         const monthNumber = parseInt(monthInput, 10);
         if (!paidMonths.includes(monthNumber)) {
             setPaidMonths(prev => [...prev, monthNumber].sort((a,b) => a-b));
@@ -867,7 +870,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIs
     }
 
     return (
-        <div className={`fixed inset-y-0 right-0 z-30 w-64 bg-white border-l shadow-md flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:flex`}>
+        <div className={`fixed inset-y-0 right-0 z-30 w-64 bg-white border-l shadow-lg flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : 'translate-x-full'} md:flex`}>
             <div className="p-4 border-b flex justify-between items-center">
                 <div>
                     <h2 className="text-xl font-bold text-indigo-600">پلتفرم املاک</h2>
@@ -881,7 +884,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIs
                 <ul>
                     {navItems.map(item => (
                         <li key={item.name}>
-                            <button onClick={() => handleNav(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <button onClick={() => handleNav(item.view)} disabled={isDemo && item.view !== 'dashboard'} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                 <item.icon className="w-5 h-5 ml-3"/>
                                 <span>{item.name}</span>
                             </button>
@@ -902,12 +905,12 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIs
 function AppLayout({ children, onNavigate, onLogout, user, activeView, isDemo = false }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-100 overflow-hidden">
             <Sidebar onNavigate={onNavigate} onLogout={onLogout} user={user} activeView={activeView} isDemo={isDemo} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen}/>
             {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 z-20 md:hidden"></div>}
             <div className="flex-1 flex flex-col">
                 <header className="md:hidden bg-white shadow-sm p-4 flex justify-between items-center">
-                    <h2 className="font-bold text-lg">{activeView.charAt(0).toUpperCase() + activeView.slice(1)}</h2>
+                    <h2 className="font-bold text-lg text-gray-800">پلتفرم املاک</h2>
                      <button onClick={() => setIsSidebarOpen(true)}>
                         <Menu size={24} />
                     </button>
@@ -980,7 +983,7 @@ function MainAppContent() {
                     ثبت‌نام و فعال‌سازی امکانات
                 </button>
             </div>
-            <PropertyAnalyticsDashboard properties={sampleProperties} onAddProperty={() => {}} isDemo={true} />
+            <PropertyAnalyticsDashboard properties={sampleProperties} onAddProperty={() => {}} isDemo={true} onRegisterClick={endDemo} />
         </AppLayout>
     );
   }
