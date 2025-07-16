@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot, serverTimestamp, orderBy } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // --- آیکون‌ها ---
@@ -540,7 +540,7 @@ function LeadsTable({ db }) {
 
     useEffect(() => {
         if (!db) return;
-        const q = query(collection(db, "demo_leads"));
+        const q = query(collection(db, "demo_leads"), orderBy("timestamp", "desc"));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const leadsData = [];
             querySnapshot.forEach((doc) => {
@@ -591,13 +591,12 @@ function ActivityLogTable({ db }) {
 
     useEffect(() => {
         if (!db) return;
-        const q = query(collection(db, "activity_logs"));
+        const q = query(collection(db, "activity_logs"), orderBy("timestamp", "desc"));
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const logsData = [];
             querySnapshot.forEach((doc) => {
                 logsData.push({ id: doc.id, ...doc.data() });
             });
-            logsData.sort((a, b) => b.timestamp?.toMillis() - a.timestamp?.toMillis());
             setLogs(logsData);
             setIsLoading(false);
         });
@@ -884,7 +883,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIs
                 <ul>
                     {navItems.map(item => (
                         <li key={item.name}>
-                            <button onClick={() => handleNav(item.view)} disabled={isDemo && item.view !== 'dashboard'} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <button onClick={() => handleNav(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                 <item.icon className="w-5 h-5 ml-3"/>
                                 <span>{item.name}</span>
                             </button>
