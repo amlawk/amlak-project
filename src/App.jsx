@@ -284,11 +284,11 @@ function AuthForm() {
           ) : (
             <>
               <div>
-                <label className="block text-gray-700 text-sm font-semibold mb-2">ایمیل:</label>
+                <label className="block text-sm font-medium text-gray-700">ایمیل:</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-2 border rounded-lg" required />
               </div>
               <div>
-                <label className="block text-gray-700 text-sm font-semibold mb-2">رمز عبور:</label>
+                <label className="block text-sm font-medium text-gray-700">رمز عبور:</label>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-2 border rounded-lg" required />
               </div>
             </>
