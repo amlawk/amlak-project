@@ -594,7 +594,6 @@ function ActivityLogTable({ db }) {
             querySnapshot.forEach((doc) => {
                 logsData.push({ id: doc.id, ...doc.data() });
             });
-            // Sort logs by timestamp descending
             logsData.sort((a, b) => b.timestamp?.toMillis() - a.timestamp?.toMillis());
             setLogs(logsData);
             setIsLoading(false);
@@ -644,7 +643,7 @@ function AdminDashboard({ onManageUser }) {
   const { db } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [adminView, setAdminView] = useState('users'); // 'users', 'leads', or 'logs'
+  const [adminView, setAdminView] = useState('users');
 
   useEffect(() => {
     if (adminView !== 'users' || !db) return;
