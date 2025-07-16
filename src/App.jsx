@@ -212,7 +212,7 @@ function RoleSelector({ selectedRole, setSelectedRole, disabled }) {
 }
 
 function AuthForm() {
-  const [authFlowState, setAuthFlowState] = useState('login');
+  const [authFlowState, setAuthFlowState] = useState('quick-login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -237,9 +237,9 @@ function AuthForm() {
   
   const renderTabs = () => (
       <div className="flex border-b mb-6">
+          <button onClick={() => setAuthFlowState('quick-login')} className={`flex-1 py-2 font-semibold ${authFlowState === 'quick-login' ? 'border-b-2 border-green-600 text-green-600' : 'text-gray-500'}`}>ورود سریع</button>
           <button onClick={() => setAuthFlowState('login')} className={`flex-1 py-2 font-semibold ${authFlowState === 'login' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}>ورود</button>
           <button onClick={() => setAuthFlowState('register')} className={`flex-1 py-2 font-semibold ${authFlowState === 'register' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500'}`}>ثبت نام</button>
-          <button onClick={() => setAuthFlowState('quick-login')} className={`flex-1 py-2 font-semibold ${authFlowState === 'quick-login' ? 'border-b-2 border-green-600 text-green-600' : 'text-gray-500'}`}>ورود سریع</button>
       </div>
   );
 
