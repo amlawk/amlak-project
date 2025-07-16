@@ -5,7 +5,7 @@ import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addD
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // --- آیکون‌ها ---
-import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp, History } from 'lucide-react';
+import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp, History, Menu } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -846,7 +846,7 @@ function PropertyAnalyticsDashboard({ properties, onAddProperty, isDemo = false 
 }
 
 // --- NEW LAYOUT COMPONENTS ---
-function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
+function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIsOpen }) {
     const { userRole } = useAuth();
     const navItems = [
         { name: 'داشبورد', icon: LayoutDashboard, view: 'dashboard' },
@@ -861,17 +861,27 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
         }
     }
 
+    const handleNav = (view) => {
+        onNavigate(view);
+        setIsOpen(false);
+    }
+
     return (
-        <div className="w-64 bg-white border-l shadow-md flex-col h-full hidden md:flex">
-            <div className="p-4 border-b">
-                <h2 className="text-xl font-bold text-indigo-600">پلتفرم املاک</h2>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+        <div className={`fixed inset-y-0 right-0 z-30 w-64 bg-white border-l shadow-md flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:flex`}>
+            <div className="p-4 border-b flex justify-between items-center">
+                <div>
+                    <h2 className="text-xl font-bold text-indigo-600">پلتفرم املاک</h2>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                </div>
+                <button onClick={() => setIsOpen(false)} className="md:hidden p-1 text-gray-600 hover:text-gray-900">
+                    <XIcon size={24} />
+                </button>
             </div>
             <nav className="flex-grow p-4">
                 <ul>
                     {navItems.map(item => (
                         <li key={item.name}>
-                            <button onClick={() => onNavigate(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <button onClick={() => handleNav(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                 <item.icon className="w-5 h-5 ml-3"/>
                                 <span>{item.name}</span>
                             </button>
@@ -890,12 +900,22 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
 }
 
 function AppLayout({ children, onNavigate, onLogout, user, activeView, isDemo = false }) {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     return (
         <div className="flex h-screen bg-gray-100">
-            <Sidebar onNavigate={onNavigate} onLogout={onLogout} user={user} activeView={activeView} isDemo={isDemo} />
-            <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
-                {children}
-            </main>
+            <Sidebar onNavigate={onNavigate} onLogout={onLogout} user={user} activeView={activeView} isDemo={isDemo} isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen}/>
+            {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/30 z-20 md:hidden"></div>}
+            <div className="flex-1 flex flex-col">
+                <header className="md:hidden bg-white shadow-sm p-4 flex justify-between items-center">
+                    <h2 className="font-bold text-lg">{activeView.charAt(0).toUpperCase() + activeView.slice(1)}</h2>
+                     <button onClick={() => setIsSidebarOpen(true)}>
+                        <Menu size={24} />
+                    </button>
+                </header>
+                <main className="flex-1 p-4 sm:p-8 overflow-y-auto">
+                    {children}
+                </main>
+            </div>
         </div>
     );
 }
