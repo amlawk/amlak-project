@@ -1,11 +1,11 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addDoc, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // --- آیکون‌ها ---
-import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp } from 'lucide-react';
+import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp, History } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -75,7 +75,23 @@ function AuthProvider({ children }) {
       setLoading(true);
       setError('');
       try {
-          await signInWithEmailAndPassword(auth, email, password);
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const loggedInUser = userCredential.user;
+          
+          // Log login activity
+          await addDoc(collection(db, 'activity_logs'), {
+              userId: loggedInUser.uid,
+              userEmail: loggedInUser.email,
+              action: 'login',
+              timestamp: serverTimestamp()
+          });
+
+          // Update last login time
+          const userDocRef = doc(db, 'users', loggedInUser.uid);
+          await updateDoc(userDocRef, {
+              lastLogin: serverTimestamp()
+          });
+
       } catch(err) {
           setError('ایمیل یا رمز عبور اشتباه است.');
       } finally {
@@ -83,8 +99,20 @@ function AuthProvider({ children }) {
       }
   };
 
-  const logout = () => {
-    if (auth) signOut(auth);
+  const logout = async () => {
+    if (auth.currentUser && db) {
+        try {
+            await addDoc(collection(db, 'activity_logs'), {
+                userId: auth.currentUser.uid,
+                userEmail: auth.currentUser.email,
+                action: 'logout',
+                timestamp: serverTimestamp()
+            });
+        } catch (logError) {
+            console.error("Error logging out activity:", logError);
+        }
+    }
+    await signOut(auth);
     setIsDemo(false);
     setDemoInfo(null);
   };
@@ -98,7 +126,7 @@ function AuthProvider({ children }) {
       await setDoc(doc(db, 'users', newUser.uid), {
         email: newUser.email,
         role: role,
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
         fullName: '',
         phoneNumber: '',
         job: '',
@@ -125,7 +153,7 @@ function AuthProvider({ children }) {
     setLoading(true);
     setError('');
     try {
-      if (db) await addDoc(collection(db, "demo_leads"), { phoneNumber, role, timestamp: new Date() });
+      if (db) await addDoc(collection(db, "demo_leads"), { phoneNumber, role, timestamp: serverTimestamp() });
     } catch (err) {
       console.error("Could not save demo lead:", err);
     } finally {
@@ -305,7 +333,7 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
                 address,
                 area: Number(area),
                 description,
-                createdAt: new Date(),
+                createdAt: serverTimestamp(),
             });
             onClose();
         } catch (error) {
@@ -541,7 +569,7 @@ function LeadsTable({ db }) {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{lead.phoneNumber}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{lead.role}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {lead.timestamp?.toDate().toLocaleDateString('fa-IR')}
+                                    {lead.timestamp?.toDate().toLocaleString('fa-IR')}
                                 </td>
                             </tr>
                         ))}
@@ -554,22 +582,83 @@ function LeadsTable({ db }) {
     );
 }
 
+function ActivityLogTable({ db }) {
+    const [logs, setLogs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!db) return;
+        const q = query(collection(db, "activity_logs"));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const logsData = [];
+            querySnapshot.forEach((doc) => {
+                logsData.push({ id: doc.id, ...doc.data() });
+            });
+            // Sort logs by timestamp descending
+            logsData.sort((a, b) => b.timestamp?.toMillis() - a.timestamp?.toMillis());
+            setLogs(logsData);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [db]);
+
+    if (isLoading) return <p className="text-center py-8 text-gray-500">در حال بارگذاری گزارش فعالیت...</p>;
+
+    return (
+        <div className="overflow-x-auto mt-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><History className="w-6 h-6 ml-2 text-purple-600"/>گزارش فعالیت کاربران</h3>
+            {logs.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">کاربر</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">زمان</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {logs.map(log => (
+                            <tr key={log.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{log.userEmail}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${log.action === 'login' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {log.action === 'login' ? 'ورود' : 'خروج'}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {log.timestamp?.toDate().toLocaleString('fa-IR')}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : (
+                <p className="text-center text-gray-500 py-8">هنوز هیچ فعالیتی ثبت نشده است.</p>
+            )}
+        </div>
+    );
+}
+
 
 function AdminDashboard({ onManageUser }) {
   const { db } = useAuth();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [adminView, setAdminView] = useState('users'); // 'users' or 'leads'
+  const [adminView, setAdminView] = useState('users'); // 'users', 'leads', or 'logs'
 
   useEffect(() => {
     if (adminView !== 'users' || !db) return;
     setIsLoading(true);
-    const fetchUsers = async () => {
-        const usersSnapshot = await getDocs(collection(db, "users"));
-        setUsers(usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const q = query(collection(db, "users"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const usersData = [];
+        querySnapshot.forEach((doc) => {
+            usersData.push({ id: doc.id, ...doc.data() });
+        });
+        setUsers(usersData);
         setIsLoading(false);
-    };
-    fetchUsers();
+    });
+    return () => unsubscribe();
   }, [db, adminView]);
 
   return (
@@ -586,6 +675,9 @@ function AdminDashboard({ onManageUser }) {
                 <button onClick={() => setAdminView('leads')} className={`${adminView === 'leads' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
                     سرنخ‌های فروش
                 </button>
+                 <button onClick={() => setAdminView('logs')} className={`${adminView === 'logs' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                    گزارش فعالیت
+                </button>
             </nav>
         </div>
 
@@ -599,6 +691,7 @@ function AdminDashboard({ onManageUser }) {
                         <tr>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ایمیل</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">نقش</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">آخرین ورود</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">عملیات</th>
                         </tr>
                       </thead>
@@ -607,6 +700,7 @@ function AdminDashboard({ onManageUser }) {
                           <tr key={u.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{u.email}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>{u.role || 'کاربر'}</span></td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.lastLogin?.toDate().toLocaleString('fa-IR') || '---'}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button onClick={() => onManageUser(u)} className="text-indigo-600 hover:text-indigo-900">مدیریت کاربر</button>
                             </td>
@@ -619,8 +713,10 @@ function AdminDashboard({ onManageUser }) {
                 )}
               </div>
             )
-        ) : (
+        ) : adminView === 'leads' ? (
             <LeadsTable db={db} />
+        ) : (
+            <ActivityLogTable db={db} />
         )}
     </>
   );
@@ -757,7 +853,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
         { name: 'درخواست ها', icon: ClipboardList, view: 'requests' },
         { name: 'تنظیمات', icon: Settings, view: 'settings' },
     ];
-    if (userRole === 'admin' || isDemo) { // Show admin panel for admin and in demo
+    if (userRole === 'admin' || isDemo) {
         if(!navItems.find(item => item.view === 'admin')){
              navItems.splice(2, 0, { name: 'پنل مدیریت', icon: Shield, view: 'admin' });
         }
@@ -773,7 +869,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo }) {
                 <ul>
                     {navItems.map(item => (
                         <li key={item.name}>
-                            <button onClick={() => onNavigate(item.view)} disabled={isDemo && item.view !== 'dashboard'} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <button onClick={() => onNavigate(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                 <item.icon className="w-5 h-5 ml-3"/>
                                 <span>{item.name}</span>
                             </button>
