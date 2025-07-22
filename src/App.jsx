@@ -5,7 +5,7 @@ import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, addD
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // --- آیکون‌ها ---
-import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp, History, Menu, Trash2 } from 'lucide-react';
+import { Home, Users, ClipboardList, User, Mail, Lock, FileText, CreditCard, LogOut, CheckCircle, Store, ShoppingCart, Shield, Edit, Save, XCircle, ArrowLeft, X as XIcon, PlusCircle, Building, Square, FileSignature, Zap, Target, BarChart2, DollarSign, Settings, LayoutDashboard, TrendingUp, History, Menu, Trash2, UserCheck, Calendar, AlertTriangle } from 'lucide-react';
 
 // --- ۱. Context برای مدیریت احراز هویت ---
 const AuthContext = createContext(null);
@@ -315,7 +315,7 @@ function AuthForm() {
   );
 }
 
-// --- کامپوننت‌های جدید و بازطراحی شده ---
+// --- کامپوننت‌های عمومی و ابزارها ---
 
 function AddPropertyModal({ isOpen, onClose, userId, db }) {
     const [propertyType, setPropertyType] = useState('apartment');
@@ -323,12 +323,33 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
     const [area, setArea] = useState('');
     const [description, setDescription] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+
+    const handleClose = () => {
+        // Reset state before closing
+        setError('');
+        setSuccess('');
+        setAddress('');
+        setArea('');
+        setDescription('');
+        onClose();
+    };
 
     if (!isOpen) return null;
 
     const handleSave = async (e) => {
         e.preventDefault();
         setIsSaving(true);
+        setError('');
+        setSuccess('');
+
+        if (!address || !area) {
+            setError('لطفاً آدرس و متراژ را وارد کنید.');
+            setIsSaving(false);
+            return;
+        }
+
         try {
             await addDoc(collection(db, 'properties'), {
                 userId,
@@ -338,9 +359,13 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
                 description,
                 createdAt: serverTimestamp(),
             });
-            onClose();
-        } catch (error) {
-            console.error("Error adding property: ", error);
+            setSuccess('ملک با موفقیت ثبت شد! این پنجره به زودی بسته می‌شود.');
+            setTimeout(() => {
+                handleClose();
+            }, 2000);
+        } catch (err) {
+            setError('خطا در ثبت ملک. لطفا اتصال خود را بررسی کرده و دوباره تلاش کنید.');
+            console.error("Error adding property: ", err);
         } finally {
             setIsSaving(false);
         }
@@ -349,9 +374,11 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg relative">
-                <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"><XIcon size={24}/></button>
+                <button onClick={handleClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"><XIcon size={24}/></button>
                 <h2 className="text-xl font-bold mb-4 flex items-center"><PlusCircle className="w-6 h-6 ml-2 text-indigo-600"/>ثبت ملک جدید</h2>
                 <form onSubmit={handleSave} className="space-y-4">
+                    {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+                    {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg text-sm">{success}</div>}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">نوع ملک</label>
                         <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="mt-1 w-full p-2 border rounded-md">
@@ -362,11 +389,11 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
                         </select>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">آدرس</label>
+                        <label className="block text-sm font-medium text-gray-700">آدرس *</label>
                         <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required className="mt-1 w-full p-2 border rounded-md" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">متراژ (متر مربع)</label>
+                        <label className="block text-sm font-medium text-gray-700">متراژ (متر مربع) *</label>
                         <input type="number" value={area} onChange={(e) => setArea(e.target.value)} required className="mt-1 w-full p-2 border rounded-md" />
                     </div>
                     <div>
@@ -374,8 +401,8 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
                         <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows="3" className="mt-1 w-full p-2 border rounded-md"></textarea>
                     </div>
                     <div className="pt-4 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300">انصراف</button>
-                        <button type="submit" disabled={isSaving} className="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                        <button type="button" onClick={handleClose} className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300">انصراف</button>
+                        <button type="submit" disabled={isSaving || !!success} className="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
                             {isSaving ? 'در حال ذخیره...' : 'ذخیره ملک'}
                         </button>
                     </div>
@@ -385,6 +412,46 @@ function AddPropertyModal({ isOpen, onClose, userId, db }) {
     );
 }
 
+function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <div className="flex items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-right flex-grow">
+                        <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3>
+                        <div className="mt-2">
+                            <p className="text-sm text-gray-500">{message}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+                    <button
+                        type="button"
+                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 sm:w-auto sm:text-sm"
+                        onClick={onConfirm}
+                    >
+                        حذف
+                    </button>
+                    <button
+                        type="button"
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm"
+                        onClick={onClose}
+                    >
+                        انصراف
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+// --- صفحات اصلی برنامه ---
 
 function ProfileAndPropertiesPage({ managedUser = null }) {
     const { db, userId: loggedInUserId, userRole: loggedInUserRole } = useAuth();
@@ -518,7 +585,7 @@ function ProfileAndPropertiesPage({ managedUser = null }) {
                                 <div key={prop.id} className="border rounded-lg p-4 bg-gray-50">
                                     <h3 className="font-bold text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{prop.address}</h3>
                                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mt-2">
-                                        <span className="flex items-center"><FileSignature className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
+                                        <span className="flex items-center"><FileText className="w-4 h-4 ml-1"/>نوع: {prop.propertyType}</span>
                                         <span className="flex items-center"><Square className="w-4 h-4 ml-1"/>متراژ: {prop.area} متر</span>
                                     </div>
                                     {prop.description && <p className="text-sm text-gray-500 mt-2">{prop.description}</p>}
@@ -534,9 +601,30 @@ function ProfileAndPropertiesPage({ managedUser = null }) {
     );
 }
 
-function LeadsTable({ db }) {
+function AdminDashboard({ onManageUser }) {
+  const { db } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [adminView, setAdminView] = useState('users');
+
+  useEffect(() => {
+    if (adminView !== 'users' || !db) return;
+    setIsLoading(true);
+    const q = query(collection(db, "users"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const usersData = [];
+        querySnapshot.forEach((doc) => {
+            usersData.push({ id: doc.id, ...doc.data() });
+        });
+        setUsers(usersData);
+        setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [db, adminView]);
+  
+  const LeadsTable = ({ db }) => {
     const [leads, setLeads] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingLeads, setIsLoadingLeads] = useState(true);
 
     useEffect(() => {
         if (!db) return;
@@ -547,12 +635,12 @@ function LeadsTable({ db }) {
                 leadsData.push({ id: doc.id, ...doc.data() });
             });
             setLeads(leadsData);
-            setIsLoading(false);
+            setIsLoadingLeads(false);
         });
         return () => unsubscribe();
     }, [db]);
 
-    if (isLoading) return <p className="text-center py-8 text-gray-500">در حال بارگذاری سرنخ‌ها...</p>;
+    if (isLoadingLeads) return <p className="text-center py-8 text-gray-500">در حال بارگذاری سرنخ‌ها...</p>;
 
     return (
         <div className="overflow-x-auto mt-6">
@@ -583,11 +671,11 @@ function LeadsTable({ db }) {
             )}
         </div>
     );
-}
-
-function ActivityLogTable({ db }) {
+  }
+  
+  const ActivityLogTable = ({ db }) => {
     const [logs, setLogs] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(true);
 
     useEffect(() => {
         if (!db) return;
@@ -598,12 +686,12 @@ function ActivityLogTable({ db }) {
                 logsData.push({ id: doc.id, ...doc.data() });
             });
             setLogs(logsData);
-            setIsLoading(false);
+            setIsLoadingLogs(false);
         });
         return () => unsubscribe();
     }, [db]);
 
-    if (isLoading) return <p className="text-center py-8 text-gray-500">در حال بارگذاری گزارش فعالیت...</p>;
+    if (isLoadingLogs) return <p className="text-center py-8 text-gray-500">در حال بارگذاری گزارش فعالیت...</p>;
 
     return (
         <div className="overflow-x-auto mt-6">
@@ -638,29 +726,7 @@ function ActivityLogTable({ db }) {
             )}
         </div>
     );
-}
-
-
-function AdminDashboard({ onManageUser }) {
-  const { db } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [adminView, setAdminView] = useState('users');
-
-  useEffect(() => {
-    if (adminView !== 'users' || !db) return;
-    setIsLoading(true);
-    const q = query(collection(db, "users"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const usersData = [];
-        querySnapshot.forEach((doc) => {
-            usersData.push({ id: doc.id, ...doc.data() });
-        });
-        setUsers(usersData);
-        setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [db, adminView]);
+  }
 
   return (
     <>
@@ -847,7 +913,303 @@ function PropertyAnalyticsDashboard({ properties, onAddProperty, isDemo = false,
     );
 }
 
-// --- NEW LAYOUT COMPONENTS ---
+function AddContractModal({ isOpen, onClose, db, userId, userEmail, userRole, properties }) {
+    const [contractType, setContractType] = useState('rent');
+    const [selectedPropertyId, setSelectedPropertyId] = useState('');
+    const [otherPartyEmail, setOtherPartyEmail] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [amount, setAmount] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+
+    useEffect(() => {
+        if (properties.length > 0 && !selectedPropertyId) {
+            setSelectedPropertyId(properties[0].id);
+        }
+    }, [properties, selectedPropertyId]);
+    
+    const handleClose = () => {
+        setError('');
+        setSuccess('');
+        setOtherPartyEmail('');
+        setStartDate('');
+        setEndDate('');
+        setAmount('');
+        onClose();
+    };
+
+
+    if (!isOpen) return null;
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        if (!selectedPropertyId || !otherPartyEmail || !startDate || !amount) {
+            setError('لطفاً تمام فیلدهای ستاره‌دار را پر کنید.');
+            return;
+        }
+        setIsSaving(true);
+
+        try {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", otherPartyEmail));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                setError('کاربری با این ایمیل یافت نشد.');
+                setIsSaving(false);
+                return;
+            }
+            
+            const otherPartyDoc = querySnapshot.docs[0];
+            const otherPartyData = { id: otherPartyDoc.id, ...otherPartyDoc.data() };
+
+            const selectedProperty = properties.find(p => p.id === selectedPropertyId);
+
+            const newContract = {
+                propertyId: selectedProperty.id,
+                propertyAddress: selectedProperty.address,
+                contractType,
+                parties: [userId, otherPartyData.id],
+                partyInfo: [
+                    { userId: userId, email: userEmail, role: contractType === 'rent' ? 'landlord' : 'seller' },
+                    { userId: otherPartyData.id, email: otherPartyData.email, role: contractType === 'rent' ? 'tenant' : 'buyer' }
+                ],
+                startDate,
+                status: 'active',
+                createdAt: serverTimestamp(),
+            };
+
+            if (contractType === 'rent') {
+                newContract.endDate = endDate;
+                newContract.rentAmount = Number(amount);
+            } else {
+                newContract.salePrice = Number(amount);
+            }
+
+            await addDoc(collection(db, 'contracts'), newContract);
+            setSuccess('قرارداد با موفقیت ایجاد شد!');
+            setTimeout(() => {
+                handleClose();
+            }, 2000);
+
+        } catch (err) {
+            console.error("Error creating contract:", err);
+            setError('خطا در ایجاد قرارداد. لطفاً دوباره تلاش کنید.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg relative">
+                <button onClick={handleClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"><XIcon size={24}/></button>
+                <h2 className="text-xl font-bold mb-4 flex items-center"><PlusCircle className="w-6 h-6 ml-2 text-green-600"/>ایجاد قرارداد جدید</h2>
+                <form onSubmit={handleSave} className="space-y-4">
+                    {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
+                    {success && <div className="bg-green-100 text-green-700 p-3 rounded-lg text-sm">{success}</div>}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">نوع قرارداد *</label>
+                        <select value={contractType} onChange={(e) => setContractType(e.target.value)} className="mt-1 w-full p-2 border rounded-md">
+                            <option value="rent">اجاره</option>
+                            <option value="sale">فروش</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">انتخاب ملک *</label>
+                        <select value={selectedPropertyId} onChange={(e) => setSelectedPropertyId(e.target.value)} required className="mt-1 w-full p-2 border rounded-md">
+                           {properties.length > 0 ? properties.map(p => <option key={p.id} value={p.id}>{p.address}</option>) : <option disabled>ابتدا یک ملک ثبت کنید</option>}
+                        </select>
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">ایمیل طرف دوم قرارداد *</label>
+                        <input type="email" value={otherPartyEmail} onChange={(e) => setOtherPartyEmail(e.target.value)} required className="mt-1 w-full p-2 border rounded-md" placeholder="email@example.com"/>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">تاریخ شروع *</label>
+                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required className="mt-1 w-full p-2 border rounded-md"/>
+                        </div>
+                        {contractType === 'rent' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">تاریخ پایان</label>
+                                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 w-full p-2 border rounded-md"/>
+                            </div>
+                        )}
+                    </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700">{contractType === 'rent' ? 'مبلغ اجاره (ماهانه)' : 'مبلغ کل فروش'} *</label>
+                        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required className="mt-1 w-full p-2 border rounded-md" placeholder="به تومان"/>
+                    </div>
+                    <div className="pt-4 flex justify-end gap-3">
+                        <button type="button" onClick={handleClose} className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300">انصراف</button>
+                        <button type="submit" disabled={isSaving || !!success || properties.length === 0} className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50">
+                            {isSaving ? 'در حال ذخیره...' : 'ایجاد قرارداد'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+function ContractsPage() {
+    const { db, userId, user, userRole } = useAuth();
+    const [contracts, setContracts] = useState([]);
+    const [properties, setProperties] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+    const [contractToDelete, setContractToDelete] = useState(null);
+    
+    useEffect(() => {
+        if (!userId || !db) return;
+
+        const q = query(collection(db, "contracts"), where("parties", "array-contains", userId));
+        const unsubscribeContracts = onSnapshot(q, (snapshot) => {
+            const contractsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setContracts(contractsData);
+            setIsLoading(false);
+        });
+
+        const propsQuery = query(collection(db, "properties"), where("userId", "==", userId));
+        const unsubscribeProps = onSnapshot(propsQuery, (snapshot) => {
+            const propsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setProperties(propsData);
+        });
+
+        return () => {
+            unsubscribeContracts();
+            unsubscribeProps();
+        };
+    }, [userId, db]);
+
+    const handleDeleteRequest = (contractId) => {
+        setContractToDelete(contractId);
+        setIsConfirmModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (contractToDelete) {
+            try {
+                await deleteDoc(doc(db, 'contracts', contractToDelete));
+            } catch (error) {
+                console.error("Error deleting contract: ", error);
+            } finally {
+                setIsConfirmModalOpen(false);
+                setContractToDelete(null);
+            }
+        }
+    };
+
+    if (isLoading) return <p className="p-8 text-center text-gray-600">در حال بارگذاری قراردادها...</p>;
+
+    const ContractCard = ({ contract, onDeleteRequest }) => {
+        const { propertyAddress, contractType, partyInfo, startDate, endDate, rentAmount, salePrice, status } = contract;
+        const otherParty = partyInfo.find(p => p.userId !== userId);
+
+        const statusStyles = {
+            active: { text: 'فعال', bg: 'bg-green-100', text_color: 'text-green-800' },
+            expired: { text: 'منقضی', bg: 'bg-red-100', text_color: 'text-red-800' },
+        };
+        
+        return (
+            <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-indigo-500">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-800 flex items-center"><Building className="w-5 h-5 ml-2 text-gray-500"/>{propertyAddress}</h3>
+                        <p className="text-sm text-gray-500 mt-1">قرارداد {contractType === 'rent' ? 'اجاره' : 'فروش'}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 text-xs font-semibold rounded-full ${statusStyles[status]?.bg} ${statusStyles[status]?.text_color}`}>
+                            {statusStyles[status]?.text || status}
+                        </span>
+                        <button onClick={() => onDeleteRequest(contract.id)} className="text-gray-400 hover:text-red-600 p-1 rounded-full"><Trash2 size={18}/></button>
+                    </div>
+                </div>
+                <div className="border-t my-4"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                        <p className="flex items-center"><UserCheck className="w-4 h-4 ml-2 text-gray-500"/><strong>طرف دوم:</strong> {otherParty?.email || 'نامشخص'}</p>
+                        <p className="flex items-center"><Calendar className="w-4 h-4 ml-2 text-gray-500"/><strong>تاریخ شروع:</strong> {new Date(startDate).toLocaleDateString('fa-IR')}</p>
+                    </div>
+                    <div className="space-y-2">
+                        {contractType === 'rent' ? (
+                            <>
+                                <p className="flex items-center"><DollarSign className="w-4 h-4 ml-2 text-gray-500"/><strong>اجاره بها:</strong> {rentAmount?.toLocaleString()} تومان</p>
+                                {endDate && <p className="flex items-center"><Calendar className="w-4 h-4 ml-2 text-gray-500"/><strong>تاریخ پایان:</strong> {new Date(endDate).toLocaleDateString('fa-IR')}</p>}
+                            </>
+                        ) : (
+                            <p className="flex items-center"><DollarSign className="w-4 h-4 ml-2 text-gray-500"/><strong>مبلغ فروش:</strong> {salePrice?.toLocaleString()} تومان</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <AddContractModal 
+                isOpen={isAddModalOpen} 
+                onClose={() => setIsAddModalOpen(false)} 
+                db={db} 
+                userId={userId}
+                userEmail={user.email}
+                userRole={userRole}
+                properties={properties}
+            />
+            <ConfirmationModal
+                isOpen={isConfirmModalOpen}
+                onClose={() => setIsConfirmModalOpen(false)}
+                onConfirm={confirmDelete}
+                title="حذف قرارداد"
+                message="آیا از حذف این قرارداد اطمینان دارید؟ این عمل غیرقابل بازگشت است."
+            />
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+                    <FileSignature className="mr-3 w-7 h-7 text-green-600"/>
+                    مدیریت قراردادها
+                </h1>
+                <button onClick={() => setIsAddModalOpen(true)} className="bg-green-600 text-white py-2 px-4 rounded-lg flex items-center hover:bg-green-700 transition text-sm font-semibold">
+                    <PlusCircle className="w-5 h-5 ml-2"/> ایجاد قرارداد جدید
+                </button>
+            </div>
+
+            {properties.length === 0 && !isLoading && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded-r-lg">
+                    <div className="flex">
+                        <div className="py-1"><AlertTriangle className="h-6 w-6 text-yellow-500 mr-4"/></div>
+                        <div>
+                            <p className="font-bold">راهنمایی</p>
+                            <p className="text-sm">برای ایجاد قرارداد، ابتدا باید حداقل یک ملک در بخش "کارتابل من" ثبت کنید.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            <div className="space-y-6">
+                {contracts.length > 0 ? (
+                    contracts.map(contract => (
+                        <ContractCard key={contract.id} contract={contract} userId={userId} onDeleteRequest={handleDeleteRequest} />
+                    ))
+                ) : (
+                    <div className="text-center py-16 bg-white rounded-xl shadow-md">
+                        <FileText size={48} className="mx-auto text-gray-300"/>
+                        <h3 className="mt-4 text-lg font-semibold text-gray-700">هنوز قراردادی ثبت نشده است</h3>
+                        <p className="mt-1 text-sm text-gray-500">با کلیک بر روی "ایجاد قرارداد جدید" اولین قرارداد خود را اضافه کنید.</p>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+}
+
+// --- ساختار و چیدمان اصلی ---
 function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIsOpen }) {
     const { userRole } = useAuth();
     const navItems = [
@@ -883,7 +1245,7 @@ function Sidebar({ onNavigate, onLogout, user, activeView, isDemo, isOpen, setIs
                 <ul>
                     {navItems.map(item => (
                         <li key={item.name}>
-                            <button onClick={() => handleNav(item.view)} disabled={isDemo} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <button onClick={() => handleNav(item.view)} disabled={isDemo && item.view !== 'dashboard'} className={`w-full flex items-center p-3 my-1 rounded-lg transition-colors ${activeView === item.view ? 'bg-indigo-100 text-indigo-700' : 'text-gray-700 hover:bg-indigo-50'} disabled:opacity-50 disabled:cursor-not-allowed`}>
                                 <item.icon className="w-5 h-5 ml-3"/>
                                 <span>{item.name}</span>
                             </button>
@@ -924,7 +1286,7 @@ function AppLayout({ children, onNavigate, onLogout, user, activeView, isDemo = 
 
 // --- کامپوننت اصلی مدیریت نمایش صفحات ---
 function MainAppContent() {
-  const { user, loading, userRole, logout, isDemo, endDemo, userId, db } = useAuth();
+  const { user, loading, logout, isDemo, endDemo, userId, db } = useAuth();
   const [view, setView] = useState('dashboard');
   const [managedUser, setManagedUser] = useState(null);
   const [properties, setProperties] = useState([]);
@@ -995,6 +1357,9 @@ function MainAppContent() {
         break;
       case 'admin': 
         content = <AdminDashboard onManageUser={(userToManage) => handleNavigation('manageUser', userToManage)} />;
+        break;
+      case 'contracts':
+        content = <ContractsPage />;
         break;
       case 'dashboard':
       default:
